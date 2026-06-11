@@ -1,0 +1,57 @@
+data:
+  data: cocogrape_gdss_0_42
+  dir: ./data
+  batch_size: 128
+  test_split: 0.049160671462829736
+  max_node_num: 15
+  max_feat_num: 9
+  init: deg
+sde:
+  x:
+    type: VP
+    beta_min: 0.1
+    beta_max: 1.0
+    num_scales: 1000
+  adj:
+    type: VP
+    beta_min: 0.1
+    beta_max: 1.0
+    num_scales: 1000
+model:
+  x: ScoreNetworkX
+  adj: ScoreNetworkA
+  conv: GCN
+  num_heads: 4
+  depth: 3
+  adim: 32
+  nhid: 32
+  num_layers: 5
+  num_linears: 2
+  c_init: 2
+  c_hid: 8
+  c_final: 4
+train:
+  name: cocogrape_compare
+  num_epochs: 5000
+  save_interval: 5000
+  print_interval: 1000
+  reduce_mean: false
+  lr: 0.01
+  lr_schedule: true
+  ema: 0.999
+  weight_decay: 0.0001
+  grad_norm: 1.0
+  lr_decay: 0.999
+  eps: 1.0e-05
+sampler:
+  predictor: Euler
+  corrector: Langevin
+  snr: 0.05
+  scale_eps: 0.7
+  n_steps: 1
+sample:
+  use_ema: false
+  noise_removal: true
+  probability_flow: false
+  eps: 0.0001
+  seed: 42
