@@ -17,3 +17,4 @@ checkpoints/
 
 # macOS
 .DS_Store
+*.ckpt
