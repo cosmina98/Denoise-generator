@@ -1318,6 +1318,66 @@ class VGAEGraphGenerator:
             return np.empty((0, self.hidden2_dim * width_multiplier), dtype=np.float32)
         return np.stack(graph_latents, axis=0)
 
+    def encode_node_latents(
+        self,
+        graphs: Sequence[nx.Graph],
+        graph_types: Optional[Sequence[Hashable]] = None,
+        *,
+        include_logstd: bool = False,
+    ) -> List[np.ndarray]:
+        """
+        Encode graphs into deterministic per-node VGAE posterior summaries.
+
+        Each returned matrix follows the canonical node-row ordering used by
+        the VGAE tensors. When ``include_logstd`` is enabled, each node's
+        posterior log-standard-deviation is concatenated to its mean.
+
+        Args:
+            graphs: Graphs to encode.
+            graph_types: Per-graph fitted type keys. Required when multiple
+                type-specific VGAE models were fitted.
+            include_logstd: Concatenate each node's posterior log standard
+                deviation to its posterior mean.
+
+        Returns:
+            One ``[num_nodes, latent_dim]`` array per input graph.
+        """
+        if not self._is_fitted:
+            raise RuntimeError("Call fit(...) before encode_node_latents(...).")
+        if graph_types is not None and len(graph_types) != len(graphs):
+            raise ValueError("graph_types must have the same length as graphs.")
+
+        if graph_types is None:
+            if len(self._states) != 1:
+                raise ValueError(
+                    "graph_types is required because multiple type-specific VGAE models were fitted."
+                )
+            only_type = next(iter(self._states))
+            graph_types = [only_type] * len(graphs)
+
+        node_latents: List[np.ndarray] = []
+        for graph, graph_type in zip(graphs, graph_types):
+            _resolved_type, state = self._resolve_state_for_generation(graph_type)
+            canonical_graph = self._canonical_graph(graph)
+            pack = self._make_graph_pack(
+                canonical_graph,
+                scaler=state["feature_scaler"],
+                n_label_features=self._label_feature_dim,
+            )
+            model = state["model"]
+            model.eval()
+            with torch.no_grad():
+                _ = model(pack["features_t"], pack["adj_norm_t"])
+                latent = (
+                    torch.cat([model.mean, model.logstd], dim=1)
+                    if include_logstd
+                    else model.mean
+                )
+            node_latents.append(
+                latent.detach().cpu().numpy().astype(np.float32)
+            )
+        return node_latents
+
     def _resolve_state_for_generation(self, graph_type: Optional[Hashable]) -> Tuple[Hashable, Dict[str, Any]]:
         """
         Resolve which fitted state to use for generation.
