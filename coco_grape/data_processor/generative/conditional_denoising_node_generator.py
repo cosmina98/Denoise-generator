@@ -13,6 +13,7 @@ from sklearn.model_selection import train_test_split
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 import warnings
 from sklearn.decomposition import PCA, TruncatedSVD
+from sklearn.linear_model import LogisticRegression
 from scipy.optimize import linear_sum_assignment
 
 # --- Utility Context Manager ---
@@ -2563,6 +2564,7 @@ class ConditionalNodeGenerator:
                 project_existence_during_sampling: bool = True,
                 project_degree_during_sampling: bool = True,
                 project_label_during_sampling: bool = True,
+                use_condition_node_count: bool = False,
                 use_dim_reduction: bool = False,
                 dim_reduction_method: str = "pca",
                 dim_reduction_components: int = 125,
@@ -2649,6 +2651,12 @@ class ConditionalNodeGenerator:
         self.project_existence_during_sampling = bool(project_existence_during_sampling)
         self.project_degree_during_sampling = bool(project_degree_during_sampling)
         self.project_label_during_sampling = bool(project_label_during_sampling)
+        self.use_condition_node_count = bool(use_condition_node_count)
+        self.node_count_model = None
+        self.valid_node_counts = []
+        self.fixed_node_count = None
+        self._last_predicted_node_counts = None
+        self._last_existence_probabilities = None
         self.use_dim_reduction = bool(use_dim_reduction)
         self.dim_reduction_method = str(dim_reduction_method).lower()
         self.dim_reduction_components = int(dim_reduction_components)
@@ -3237,6 +3245,41 @@ class ConditionalNodeGenerator:
         y_array = np.array(conditional_graph_encodings)
         X_scaled, y_scaled = self._transform_data(X_array, y_array)
 
+        node_counts = np.asarray(
+            [
+                int(np.asarray(node_encoding).shape[0])
+                for node_encoding in node_encodings_list
+            ],
+            dtype=np.int64,
+        )
+        self.valid_node_counts = sorted(np.unique(node_counts).astype(int).tolist())
+        self.node_count_model = None
+        self.fixed_node_count = None
+        if self.use_condition_node_count:
+            if len(self.valid_node_counts) == 1:
+                self.fixed_node_count = int(self.valid_node_counts[0])
+                if self.verbose:
+                    print(
+                        "Condition node-count control: fixed count "
+                        f"{self.fixed_node_count}."
+                    )
+            elif len(self.valid_node_counts) > 1:
+                self.node_count_model = LogisticRegression(
+                    max_iter=2000,
+                    class_weight="balanced",
+                    random_state=int(self.random_state),
+                )
+                self.node_count_model.fit(y_scaled, node_counts)
+                train_accuracy = float(
+                    self.node_count_model.score(y_scaled, node_counts)
+                )
+                if self.verbose:
+                    print(
+                        "Condition node-count control: learned counts "
+                        f"{self.valid_node_counts}; training accuracy "
+                        f"{train_accuracy:.3f}."
+                    )
+
         X_tensor = torch.tensor(X_scaled, dtype=torch.float32)
         y_tensor = torch.tensor(y_scaled, dtype=torch.float32)
 
@@ -3435,6 +3478,67 @@ class ConditionalNodeGenerator:
             lab_classes = lab_classes.cpu().numpy()
             for i in range(len(gen_orig)):
                 gen_orig[i][..., self.label_feature_index] = np.clip(lab_classes[i], 0, self.L_max)
+
+        if self.use_condition_node_count:
+            if self.fixed_node_count is not None:
+                predicted_counts = np.full(
+                    len(gen_orig),
+                    int(self.fixed_node_count),
+                    dtype=np.int64,
+                )
+            elif self.node_count_model is not None:
+                predicted_counts = np.asarray(
+                    self.node_count_model.predict(y_scaled),
+                    dtype=np.int64,
+                )
+            else:
+                raise RuntimeError(
+                    "Condition node-count control is enabled but has not been "
+                    "fitted. Call fit() before predict()."
+                )
+
+            with torch.no_grad():
+                t0 = torch.zeros(
+                    cond_tensor.size(0),
+                    1,
+                    dtype=cond_tensor.dtype,
+                    device=self.device,
+                )
+                final_prediction = self.model.forward(
+                    generated,
+                    cond_tensor,
+                    t0,
+                    return_latents=True,
+                    add_noise=False,
+                )
+                existence_probabilities = torch.sigmoid(
+                    final_prediction[2]
+                ).detach().cpu().numpy()
+
+            for graph_index, (encoding, count) in enumerate(
+                zip(gen_orig, predicted_counts)
+            ):
+                count = int(np.clip(count, 0, encoding.shape[0]))
+                ranking = np.argsort(
+                    existence_probabilities[graph_index],
+                    kind="stable",
+                )
+                selected = ranking[-count:] if count > 0 else np.array([], dtype=int)
+                encoding[:, 0] = 0.0
+                encoding[selected, 0] = 1.0
+                inactive = np.ones(encoding.shape[0], dtype=bool)
+                inactive[selected] = False
+                encoding[inactive, self.important_feature_index] = 0.0
+
+            self._last_predicted_node_counts = predicted_counts.copy()
+            self._last_existence_probabilities = existence_probabilities.copy()
+            if self.verbose:
+                values, counts = np.unique(predicted_counts, return_counts=True)
+                summary = {
+                    int(value): int(count)
+                    for value, count in zip(values, counts)
+                }
+                print("Condition-predicted node counts:", summary)
 
 
         # ------------------------------------------------------------------

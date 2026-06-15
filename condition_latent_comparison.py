@@ -115,6 +115,7 @@ def generator_config_fingerprint(generator):
         "project_existence_during_sampling",
         "project_degree_during_sampling",
         "project_label_during_sampling",
+        "use_condition_node_count",
         "use_guidance",
         "random_row_permutation",
         "use_matched_row_loss",
