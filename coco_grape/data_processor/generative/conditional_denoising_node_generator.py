@@ -13,7 +13,7 @@ from sklearn.model_selection import train_test_split
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 import warnings
 from sklearn.decomposition import PCA, TruncatedSVD
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, Ridge
 from scipy.optimize import linear_sum_assignment
 
 # --- Utility Context Manager ---
@@ -2565,6 +2565,7 @@ class ConditionalNodeGenerator:
                 project_degree_during_sampling: bool = True,
                 project_label_during_sampling: bool = True,
                 use_condition_node_count: bool = False,
+                use_condition_degree_histogram: bool = False,
                 use_dim_reduction: bool = False,
                 dim_reduction_method: str = "pca",
                 dim_reduction_components: int = 125,
@@ -2657,6 +2658,12 @@ class ConditionalNodeGenerator:
         self.fixed_node_count = None
         self._last_predicted_node_counts = None
         self._last_existence_probabilities = None
+        self.use_condition_degree_histogram = bool(
+            use_condition_degree_histogram
+        )
+        self.degree_histogram_model = None
+        self.fixed_degree_histogram = None
+        self._last_predicted_degree_histograms = None
         self.use_dim_reduction = bool(use_dim_reduction)
         self.dim_reduction_method = str(dim_reduction_method).lower()
         self.dim_reduction_components = int(dim_reduction_components)
@@ -3280,6 +3287,44 @@ class ConditionalNodeGenerator:
                         f"{train_accuracy:.3f}."
                     )
 
+        degree_histograms = np.zeros(
+            (len(node_encodings_list), self.D_max + 1),
+            dtype=np.float32,
+        )
+        for graph_index, node_encoding in enumerate(node_encodings_list):
+            raw_degrees = np.rint(
+                np.asarray(node_encoding)[:, self.important_feature_index]
+            ).astype(np.int64)
+            raw_degrees = np.clip(raw_degrees, 0, self.D_max)
+            degree_histograms[graph_index] = np.bincount(
+                raw_degrees,
+                minlength=self.D_max + 1,
+            )
+        self.degree_histogram_model = None
+        self.fixed_degree_histogram = None
+        if self.use_condition_degree_histogram:
+            unique_histograms = np.unique(degree_histograms, axis=0)
+            if len(unique_histograms) == 1:
+                self.fixed_degree_histogram = unique_histograms[0].copy()
+                if self.verbose:
+                    print(
+                        "Condition degree-histogram control: fixed histogram "
+                        f"{self.fixed_degree_histogram.astype(int).tolist()}."
+                    )
+            else:
+                self.degree_histogram_model = Ridge(alpha=1.0)
+                self.degree_histogram_model.fit(y_scaled, degree_histograms)
+                train_prediction = self.degree_histogram_model.predict(y_scaled)
+                train_mae = float(
+                    np.mean(np.abs(train_prediction - degree_histograms))
+                )
+                if self.verbose:
+                    print(
+                        "Condition degree-histogram control: learned "
+                        f"{self.D_max + 1} bins; training MAE "
+                        f"{train_mae:.3f} nodes/bin."
+                    )
+
         X_tensor = torch.tensor(X_scaled, dtype=torch.float32)
         y_tensor = torch.tensor(y_scaled, dtype=torch.float32)
 
@@ -3479,7 +3524,8 @@ class ConditionalNodeGenerator:
             for i in range(len(gen_orig)):
                 gen_orig[i][..., self.label_feature_index] = np.clip(lab_classes[i], 0, self.L_max)
 
-        if self.use_condition_node_count:
+        final_degree_logits = None
+        if self.use_condition_node_count or self.use_condition_degree_histogram:
             if self.fixed_node_count is not None:
                 predicted_counts = np.full(
                     len(gen_orig),
@@ -3514,7 +3560,9 @@ class ConditionalNodeGenerator:
                 existence_probabilities = torch.sigmoid(
                     final_prediction[2]
                 ).detach().cpu().numpy()
+                final_degree_logits = final_prediction[1].detach().cpu().numpy()
 
+        if self.use_condition_node_count:
             for graph_index, (encoding, count) in enumerate(
                 zip(gen_orig, predicted_counts)
             ):
@@ -3540,6 +3588,111 @@ class ConditionalNodeGenerator:
                 }
                 print("Condition-predicted node counts:", summary)
 
+        if self.use_condition_degree_histogram:
+            if self.fixed_degree_histogram is not None:
+                raw_histograms = np.repeat(
+                    self.fixed_degree_histogram[None, :],
+                    len(gen_orig),
+                    axis=0,
+                )
+            elif self.degree_histogram_model is not None:
+                raw_histograms = self.degree_histogram_model.predict(y_scaled)
+            else:
+                raise RuntimeError(
+                    "Condition degree-histogram control is enabled but has not "
+                    "been fitted. Call fit() before predict()."
+                )
+
+            predicted_histograms = []
+            for graph_index, encoding in enumerate(gen_orig):
+                active_indices = np.flatnonzero(encoding[:, 0] >= 0.5)
+                node_count = len(active_indices)
+                raw_histogram = np.maximum(
+                    np.asarray(raw_histograms[graph_index], dtype=float),
+                    0.0,
+                )
+                if raw_histogram.sum() <= 0:
+                    raw_histogram = np.ones_like(raw_histogram)
+                scaled_histogram = raw_histogram * (
+                    node_count / raw_histogram.sum()
+                )
+                histogram = np.floor(scaled_histogram).astype(np.int64)
+                remainder = node_count - int(histogram.sum())
+                if remainder > 0:
+                    fractions = scaled_histogram - histogram
+                    add_bins = np.argsort(-fractions, kind="stable")[:remainder]
+                    histogram[add_bins] += 1
+                elif remainder < 0:
+                    removable = np.argsort(
+                        scaled_histogram - histogram,
+                        kind="stable",
+                    )
+                    for degree_class in removable:
+                        take = min(histogram[degree_class], -remainder)
+                        histogram[degree_class] -= take
+                        remainder += take
+                        if remainder == 0:
+                            break
+
+                degree_slots = np.repeat(
+                    np.arange(len(histogram), dtype=np.int64),
+                    histogram,
+                )
+                if len(degree_slots) != node_count:
+                    raise RuntimeError(
+                        "Projected degree histogram does not match node count."
+                    )
+
+                if node_count > 0:
+                    logits = final_degree_logits[
+                        graph_index,
+                        active_indices,
+                        : len(histogram),
+                    ]
+                    logits = logits - logits.max(axis=1, keepdims=True)
+                    probabilities = np.exp(logits)
+                    probabilities /= np.maximum(
+                        probabilities.sum(axis=1, keepdims=True),
+                        1e-12,
+                    )
+                    assignment_cost = -np.log(
+                        np.maximum(probabilities[:, degree_slots], 1e-12)
+                    )
+                    row_indices, slot_indices = linear_sum_assignment(
+                        assignment_cost
+                    )
+                    assigned_degrees = np.zeros(node_count, dtype=np.int64)
+                    assigned_degrees[row_indices] = degree_slots[slot_indices]
+                    encoding[
+                        active_indices,
+                        self.important_feature_index,
+                    ] = assigned_degrees
+                encoding[
+                    encoding[:, 0] < 0.5,
+                    self.important_feature_index,
+                ] = 0.0
+                predicted_histograms.append(histogram)
+
+            self._last_predicted_degree_histograms = np.asarray(
+                predicted_histograms,
+                dtype=np.int64,
+            )
+            if self.verbose:
+                histogram_summary = {
+                    tuple(histogram.tolist()): count
+                    for histogram, count in zip(
+                        *np.unique(
+                            self._last_predicted_degree_histograms,
+                            axis=0,
+                            return_counts=True,
+                        )
+                    )
+                }
+                print(
+                    "Condition-predicted degree histograms:",
+                    histogram_summary,
+                )
+
 
         # ------------------------------------------------------------------
         # 3. Optional overwrite of existence / degree channels using heads
@@ -3559,7 +3712,11 @@ class ConditionalNodeGenerator:
             #         gen_orig[i][..., 0] = exist_bin[i]
 
             # If degree logits were stored during generation, overwrite degree channel
-            if self.project_degree_during_sampling and deg_classes is not None:
+            if (
+                self.project_degree_during_sampling
+                and not self.use_condition_degree_histogram
+                and deg_classes is not None
+            ):
                 deg_classes = deg_classes.cpu().numpy()
                 for i in range(len(gen_orig)):
                     # Overwrite the degree channel (assumed channel index 1)
