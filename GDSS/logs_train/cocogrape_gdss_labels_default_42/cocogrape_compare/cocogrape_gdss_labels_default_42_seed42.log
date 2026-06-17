@@ -150,3 +150,4 @@ lr=0.01 schedule=True ema=0.999 epochs=300 reduce=False eps=1e-05
 142 | 123.39s | test x: 6.091e+00 | test adj: 9.224e+00 | train x: 6.305e+00 | train adj: 9.721e+00 | 
 143 | 134.82s | test x: 5.996e+00 | test adj: 8.767e+00 | train x: 6.422e+00 | train adj: 9.878e+00 | 
 144 | 99.20s | test x: 5.912e+00 | test adj: 1.027e+01 | train x: 6.476e+00 | train adj: 9.873e+00 | 
+145 | 116.25s | test x: 5.669e+00 | test adj: 9.467e+00 | train x: 6.509e+00 | train adj: 9.826e+00 | 
