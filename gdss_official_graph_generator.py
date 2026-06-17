@@ -8,6 +8,7 @@ import pickle
 import random
 import re
 import sys
+import types
 from collections import Counter, defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -127,13 +128,25 @@ class OfficialGDSSGraphGenerator:
         sys.path.insert(0, repo)
         importlib.invalidate_caches()
 
-        # GDSS uses bare imports like ``from utils.loader import ...``.
-        # In notebooks, a different ``utils`` module can linger in memory
-        # and shadow GDSS's local ``utils`` namespace package.
-        existing_utils = sys.modules.get("utils")
-        existing_path = getattr(existing_utils, "__file__", None)
-        existing_pkg_path = getattr(existing_utils, "__path__", None)
-        if existing_utils is not None:
+        # GDSS uses bare imports like ``from utils.loader import ...`` and
+        # ``from data.data_generators import ...``. Notebook kernels often
+        # already contain unrelated modules with those short names, so clear
+        # any non-GDSS namespace before importing the official code.
+        for root_name in (
+            "data",
+            "evaluation",
+            "losses",
+            "models",
+            "parsers",
+            "sde",
+            "solver",
+            "utils",
+        ):
+            existing = sys.modules.get(root_name)
+            if existing is None:
+                continue
+            existing_path = getattr(existing, "__file__", None)
+            existing_pkg_path = getattr(existing, "__path__", None)
             path_text = " ".join(str(p) for p in (existing_pkg_path or []))
             if (
                 existing_path is not None
@@ -142,10 +155,20 @@ class OfficialGDSSGraphGenerator:
                 existing_pkg_path is not None
                 and repo not in path_text
             ):
-                sys.modules.pop("utils", None)
+                sys.modules.pop(root_name, None)
                 for name in list(sys.modules):
-                    if name.startswith("utils."):
+                    if name.startswith(f"{root_name}."):
                         sys.modules.pop(name, None)
+
+        # This local GDSS copy keeps ``data_generators.py`` at the repo root,
+        # while ``utils.data_loader`` imports ``data.data_generators``. Provide
+        # that package-style alias without modifying the vendored GDSS files.
+        data_generators = importlib.import_module("data_generators")
+        data_package = types.ModuleType("data")
+        data_package.__path__ = [str(self.gdss_repo_path / "data")]
+        data_package.data_generators = data_generators
+        sys.modules["data"] = data_package
+        sys.modules["data.data_generators"] = data_generators
 
         # Import eagerly so notebook kernels fail here, not deep inside GDSS.
         importlib.import_module("utils.loader")
