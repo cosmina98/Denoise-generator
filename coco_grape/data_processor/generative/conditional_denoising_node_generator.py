@@ -2566,6 +2566,7 @@ class ConditionalNodeGenerator:
                 project_label_during_sampling: bool = True,
                 use_condition_node_count: bool = False,
                 use_condition_degree_histogram: bool = False,
+                use_condition_label_histogram: bool = False,
                 use_dim_reduction: bool = False,
                 dim_reduction_method: str = "pca",
                 dim_reduction_components: int = 125,
@@ -2664,6 +2665,12 @@ class ConditionalNodeGenerator:
         self.degree_histogram_model = None
         self.fixed_degree_histogram = None
         self._last_predicted_degree_histograms = None
+        self.use_condition_label_histogram = bool(
+            use_condition_label_histogram
+        )
+        self.label_histogram_model = None
+        self.fixed_label_histogram = None
+        self._last_predicted_label_histograms = None
         self.use_dim_reduction = bool(use_dim_reduction)
         self.dim_reduction_method = str(dim_reduction_method).lower()
         self.dim_reduction_components = int(dim_reduction_components)
@@ -3325,6 +3332,44 @@ class ConditionalNodeGenerator:
                         f"{train_mae:.3f} nodes/bin."
                     )
 
+        label_histograms = np.zeros(
+            (len(node_encodings_list), self.L_max + 1),
+            dtype=np.float32,
+        )
+        for graph_index, node_encoding in enumerate(node_encodings_list):
+            raw_labels = np.rint(
+                np.asarray(node_encoding)[:, self.label_feature_index]
+            ).astype(np.int64)
+            raw_labels = np.clip(raw_labels, 0, self.L_max)
+            label_histograms[graph_index] = np.bincount(
+                raw_labels,
+                minlength=self.L_max + 1,
+            )
+        self.label_histogram_model = None
+        self.fixed_label_histogram = None
+        if self.use_condition_label_histogram:
+            unique_histograms = np.unique(label_histograms, axis=0)
+            if len(unique_histograms) == 1:
+                self.fixed_label_histogram = unique_histograms[0].copy()
+                if self.verbose:
+                    print(
+                        "Condition label-histogram control: fixed histogram "
+                        f"{self.fixed_label_histogram.astype(int).tolist()}."
+                    )
+            else:
+                self.label_histogram_model = Ridge(alpha=1.0)
+                self.label_histogram_model.fit(y_scaled, label_histograms)
+                train_prediction = self.label_histogram_model.predict(y_scaled)
+                train_mae = float(
+                    np.mean(np.abs(train_prediction - label_histograms))
+                )
+                if self.verbose:
+                    print(
+                        "Condition label-histogram control: learned "
+                        f"{self.L_max + 1} bins; training MAE "
+                        f"{train_mae:.3f} nodes/bin."
+                    )
+
         X_tensor = torch.tensor(X_scaled, dtype=torch.float32)
         y_tensor = torch.tensor(y_scaled, dtype=torch.float32)
 
@@ -3525,19 +3570,26 @@ class ConditionalNodeGenerator:
                 gen_orig[i][..., self.label_feature_index] = np.clip(lab_classes[i], 0, self.L_max)
 
         final_degree_logits = None
-        if self.use_condition_node_count or self.use_condition_degree_histogram:
-            if self.fixed_node_count is not None:
+        final_label_logits = None
+        needs_final_logits = (
+            self.use_condition_node_count
+            or self.use_condition_degree_histogram
+            or self.use_condition_label_histogram
+        )
+        if needs_final_logits:
+            predicted_counts = None
+            if self.use_condition_node_count and self.fixed_node_count is not None:
                 predicted_counts = np.full(
                     len(gen_orig),
                     int(self.fixed_node_count),
                     dtype=np.int64,
                 )
-            elif self.node_count_model is not None:
+            elif self.use_condition_node_count and self.node_count_model is not None:
                 predicted_counts = np.asarray(
                     self.node_count_model.predict(y_scaled),
                     dtype=np.int64,
                 )
-            else:
+            elif self.use_condition_node_count:
                 raise RuntimeError(
                     "Condition node-count control is enabled but has not been "
                     "fitted. Call fit() before predict()."
@@ -3560,7 +3612,10 @@ class ConditionalNodeGenerator:
                 existence_probabilities = torch.sigmoid(
                     final_prediction[2]
                 ).detach().cpu().numpy()
-                final_degree_logits = final_prediction[1].detach().cpu().numpy()
+                if self.use_condition_degree_histogram:
+                    final_degree_logits = final_prediction[1].detach().cpu().numpy()
+                if self.use_condition_label_histogram and final_prediction[3] is not None:
+                    final_label_logits = final_prediction[3].detach().cpu().numpy()
 
         if self.use_condition_node_count:
             for graph_index, (encoding, count) in enumerate(
@@ -3693,6 +3748,116 @@ class ConditionalNodeGenerator:
                     histogram_summary,
                 )
 
+        if self.use_condition_label_histogram:
+            if final_label_logits is None:
+                raise RuntimeError(
+                    "Condition label-histogram control requires the label head "
+                    "to be available during prediction."
+                )
+            if self.fixed_label_histogram is not None:
+                raw_histograms = np.repeat(
+                    self.fixed_label_histogram[None, :],
+                    len(gen_orig),
+                    axis=0,
+                )
+            elif self.label_histogram_model is not None:
+                raw_histograms = self.label_histogram_model.predict(y_scaled)
+            else:
+                raise RuntimeError(
+                    "Condition label-histogram control is enabled but has not "
+                    "been fitted. Call fit() before predict()."
+                )
+
+            predicted_histograms = []
+            for graph_index, encoding in enumerate(gen_orig):
+                active_indices = np.flatnonzero(encoding[:, 0] >= 0.5)
+                node_count = len(active_indices)
+                raw_histogram = np.maximum(
+                    np.asarray(raw_histograms[graph_index], dtype=float),
+                    0.0,
+                )
+                if raw_histogram.sum() <= 0:
+                    raw_histogram = np.ones_like(raw_histogram)
+                scaled_histogram = raw_histogram * (
+                    node_count / raw_histogram.sum()
+                )
+                histogram = np.floor(scaled_histogram).astype(np.int64)
+                remainder = node_count - int(histogram.sum())
+                if remainder > 0:
+                    fractions = scaled_histogram - histogram
+                    add_bins = np.argsort(-fractions, kind="stable")[:remainder]
+                    histogram[add_bins] += 1
+                elif remainder < 0:
+                    removable = np.argsort(
+                        scaled_histogram - histogram,
+                        kind="stable",
+                    )
+                    for label_class in removable:
+                        take = min(histogram[label_class], -remainder)
+                        histogram[label_class] -= take
+                        remainder += take
+                        if remainder == 0:
+                            break
+
+                label_slots = np.repeat(
+                    np.arange(len(histogram), dtype=np.int64),
+                    histogram,
+                )
+                if len(label_slots) != node_count:
+                    raise RuntimeError(
+                        "Projected label histogram does not match node count."
+                    )
+
+                if node_count > 0:
+                    logits = final_label_logits[
+                        graph_index,
+                        active_indices,
+                        : len(histogram),
+                    ]
+                    logits = logits - logits.max(axis=1, keepdims=True)
+                    probabilities = np.exp(logits)
+                    probabilities /= np.maximum(
+                        probabilities.sum(axis=1, keepdims=True),
+                        1e-12,
+                    )
+                    assignment_cost = -np.log(
+                        np.maximum(probabilities[:, label_slots], 1e-12)
+                    )
+                    row_indices, slot_indices = linear_sum_assignment(
+                        assignment_cost
+                    )
+                    assigned_labels = np.zeros(node_count, dtype=np.int64)
+                    assigned_labels[row_indices] = label_slots[slot_indices]
+                    encoding[
+                        active_indices,
+                        self.label_feature_index,
+                    ] = assigned_labels
+                encoding[
+                    encoding[:, 0] < 0.5,
+                    self.label_feature_index,
+                ] = 0.0
+                predicted_histograms.append(histogram)
+
+            self._last_predicted_label_histograms = np.asarray(
+                predicted_histograms,
+                dtype=np.int64,
+            )
+            if self.verbose:
+                histogram_summary = {
+                    tuple(histogram.tolist()): count
+                    for histogram, count in zip(
+                        *np.unique(
+                            self._last_predicted_label_histograms,
+                            axis=0,
+                            return_counts=True,
+                        )
+                    )
+                }
+                print(
+                    "Condition-predicted label histograms:",
+                    histogram_summary,
+                )
+
 
         # ------------------------------------------------------------------
         # 3. Optional overwrite of existence / degree channels using heads
@@ -3731,7 +3896,10 @@ class ConditionalNodeGenerator:
                     projected.append("existence")
                 if self.project_degree_during_sampling:
                     projected.append("degree")
-                if self.project_label_during_sampling:
+                if (
+                    self.project_label_during_sampling
+                    and not self.use_condition_label_histogram
+                ):
                     projected.append("label")
                 if projected:
                     print(f"Applied head-based projection for {', '.join(projected)} channels.")
