@@ -355,3 +355,10 @@ lr=0.01 schedule=True ema=0.999 epochs=300 reduce=False eps=1e-05
 194 | 45.21s | test x: 5.730e+00 | test adj: 7.236e+00 | train x: 6.570e+00 | train adj: 8.714e+00 | 
 195 | 45.23s | test x: 6.371e+00 | test adj: 8.790e+00 | train x: 6.346e+00 | train adj: 8.741e+00 | 
 196 | 45.15s | test x: 5.359e+00 | test adj: 7.373e+00 | train x: 6.446e+00 | train adj: 8.370e+00 | 
+197 | 45.12s | test x: 5.911e+00 | test adj: 7.270e+00 | train x: 6.303e+00 | train adj: 8.542e+00 | 
+198 | 45.16s | test x: 5.878e+00 | test adj: 8.114e+00 | train x: 6.378e+00 | train adj: 8.639e+00 | 
+199 | 45.22s | test x: 5.839e+00 | test adj: 7.910e+00 | train x: 6.363e+00 | train adj: 8.412e+00 | 
+200 | 45.16s | test x: 6.126e+00 | test adj: 8.986e+00 | train x: 6.423e+00 | train adj: 8.523e+00 | 
+201 | 45.15s | test x: 6.144e+00 | test adj: 8.544e+00 | train x: 6.541e+00 | train adj: 8.722e+00 | 
+202 | 45.17s | test x: 5.741e+00 | test adj: 8.317e+00 | train x: 6.391e+00 | train adj: 8.350e+00 | 
+203 | 45.23s | test x: 5.984e+00 | test adj: 8.539e+00 | train x: 6.518e+00 | train adj: 8.735e+00 | 
