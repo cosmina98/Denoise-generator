@@ -3602,12 +3602,19 @@ class ConditionalNodeGenerator:
                     dtype=cond_tensor.dtype,
                     device=self.device,
                 )
+                final_edge_state = getattr(self.model, "_last_edge_probabilities", None)
+                if final_edge_state is not None:
+                    final_edge_state = final_edge_state.to(
+                        device=self.device,
+                        dtype=generated.dtype,
+                    )
                 final_prediction = self.model.forward(
                     generated,
                     cond_tensor,
                     t0,
                     return_latents=True,
                     add_noise=False,
+                    edge_state=final_edge_state,
                 )
                 existence_probabilities = torch.sigmoid(
                     final_prediction[2]
