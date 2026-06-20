@@ -64,9 +64,15 @@ def inject_labels_from_graphs(
     label_index=2,
     label_to_idx=None,
     unlabeled="__UNLABELED__",
+    include_label_one_hot=False,
 ):
     """
-    Insert integer IDs from G.nodes[u]['label'] at `label_index`.
+    Insert node labels from G.nodes[u]['label'] at `label_index`.
+
+    When include_label_one_hot=True, insert only a one-hot label block at
+    label_index. This keeps labels categorical instead of creating an
+    artificial scalar ordering between classes. When False, keep the legacy
+    scalar label-id column.
 
     This preserves all existing vectorizer features by shifting columns
     `label_index:` to the right. Returns (new_list, label_to_idx).
@@ -104,7 +110,14 @@ def inject_labels_from_graphs(
         if D < label_index:
             E = np.hstack([E, np.zeros((N, label_index - D), dtype=E.dtype)])
 
-        E = np.insert(E, label_index, ids, axis=1)
+        if include_label_one_hot:
+            one_hot = np.zeros((N, len(label_to_idx)), dtype=E.dtype)
+            valid_ids = np.clip(ids.astype(int), 0, max(len(label_to_idx) - 1, 0))
+            if len(label_to_idx) > 0 and N > 0:
+                one_hot[np.arange(N), valid_ids] = 1.0
+            E = np.hstack([E[:, :label_index], one_hot, E[:, label_index:]])
+        else:
+            E = np.insert(E, label_index, ids, axis=1)
         out.append(E)
 
     return out, label_to_idx
@@ -560,8 +573,17 @@ class DecompositionalNodeEncoderDecoder(object):
         graphs: List[nx.Graph]
     ) -> Tuple[np.ndarray, List[Any]]:
         X, y = [], []
+        label_start = 2
+        label_width = int(getattr(self, "_node_label_one_hot_width", 0) or 0)
         for graph, enc in zip(graphs, node_encodings_list):
-            enc_no_lbl = np.delete(enc, 2, axis=1) if enc.shape[1] > 2 else enc
+            if label_width > 0 and enc.shape[1] >= label_start + label_width:
+                enc_no_lbl = np.delete(
+                    enc,
+                    np.s_[label_start : label_start + label_width],
+                    axis=1,
+                )
+            else:
+                enc_no_lbl = np.delete(enc, 2, axis=1) if enc.shape[1] > 2 else enc
             for i, u in enumerate(list(graph.nodes())):
                 X.append(enc_no_lbl[i])
                 y.append(graph.nodes[u]['label'])
@@ -953,7 +975,51 @@ class DecompositionalNodeEncoderDecoder(object):
             label = _restore_numeric_label(self.single_node_label)
             return [np.array([label] * enc.shape[0], dtype=object) for enc in node_encodings_list]
 
-        # prefer using feature column 2 when available + mapping provided
+        # If a classifier is provided, prefer it over the generated label-id
+        # column. The generated column can get the right label counts but wrong
+        # node positions; this classifier learns label placement from node state.
+        if self.node_label_classifier is not None:
+            label_start = 2
+            label_width = int(getattr(self, "_node_label_one_hot_width", 0) or 0)
+            encs_drop = []
+            for enc in node_encodings_list:
+                if label_width > 0 and enc.shape[1] >= label_start + label_width:
+                    encs_drop.append(
+                        np.delete(
+                            enc,
+                            np.s_[label_start : label_start + label_width],
+                            axis=1,
+                        )
+                    )
+                else:
+                    encs_drop.append(np.delete(enc, 2, axis=1) if enc.shape[1] > 2 else enc)
+            if len(encs_drop) == 0:
+                return []
+            X = np.vstack(encs_drop)
+            predicted_node_labels = self.node_label_classifier.predict(X)
+            predicted_node_labels = np.asarray([
+                _restore_numeric_label(label) for label in predicted_node_labels
+            ], dtype=object)
+            sizes = [enc.shape[0] for enc in encs_drop]
+            return np.split(predicted_node_labels, np.cumsum(sizes)[:-1])
+
+        # No classifier: decode labels from one-hot block when available.
+        label_width = int(getattr(self, "_node_label_one_hot_width", 0) or 0)
+        if (
+            label_width > 0
+            and hasattr(self, "_idx_to_label")
+            and all(enc.shape[1] >= 2 + label_width for enc in node_encodings_list)
+        ):
+            out = []
+            for enc in node_encodings_list:
+                ids = np.argmax(enc[:, 2 : 2 + label_width], axis=1).astype(int)
+                out.append(np.array([
+                    _restore_numeric_label(self._idx_to_label.get(int(i), i))
+                    for i in ids
+                ], dtype=object))
+            return out
+
+        # Legacy fallback: use scalar feature column 2 when available + mapping provided.
         if hasattr(self, "_idx_to_label") and all(enc.shape[1] > 2 for enc in node_encodings_list):
             out = []
             max_label_id = max(self._idx_to_label) if self._idx_to_label else 0
@@ -966,17 +1032,10 @@ class DecompositionalNodeEncoderDecoder(object):
                 ], dtype=object))
             return out
 
-        # fallback to classifier (drop potential label-id leakage column)
-        encs_drop = [np.delete(enc, 2, axis=1) if enc.shape[1] > 2 else enc for enc in node_encodings_list]
-        if len(encs_drop) == 0:
-            return []
-        X = np.vstack(encs_drop)
-        predicted_node_labels = self.node_label_classifier.predict(X)
-        predicted_node_labels = np.asarray([
-            _restore_numeric_label(label) for label in predicted_node_labels
-        ], dtype=object)
-        sizes = [enc.shape[0] for enc in encs_drop]
-        return np.split(predicted_node_labels, np.cumsum(sizes)[:-1])
+        raise RuntimeError(
+            "Cannot decode node labels: provide node_label_classifier or keep "
+            "label IDs in node encoding column 2 with _idx_to_label mapping."
+        )
 
 
     def decode_edge_labels(
@@ -1673,15 +1732,25 @@ class DecompositionalEncoderDecoder(object):
             node_encs, graphs,
             label_index=2,
             label_to_idx=getattr(self, "_label_to_idx", None),
+            include_label_one_hot=True,
         )
         node_encs = self._transform_direct_node_encodings(node_encs)
         # keep mapping for decode
         self._label_to_idx = label_to_idx
         self._idx_to_label = {v: k for k, v in label_to_idx.items()}
+        self._node_label_one_hot_width = len(label_to_idx)
 
         # also expose mapping to the graph decoder so it can decode from col 2
         if self.node_embeddings_to_graph_generator is not None:
             self.node_embeddings_to_graph_generator._idx_to_label = self._idx_to_label
+            self.node_embeddings_to_graph_generator._node_label_one_hot_width = len(label_to_idx)
+            conditional_generator = getattr(
+                self.node_embeddings_to_graph_generator,
+                "conditional_node_generator",
+                None,
+            )
+            if conditional_generator is not None:
+                conditional_generator._node_label_one_hot_width = len(label_to_idx)
 
         cond_encs = self.graph_encode(graphs)
         if self.node_embeddings_to_graph_generator is not None:

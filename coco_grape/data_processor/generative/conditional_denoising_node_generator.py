@@ -407,6 +407,7 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
                  label_class_weight: Optional[Union[torch.Tensor, Sequence[float]]] = None,
                  label_min_val: float = 0.0,
                  label_range_val: float = 1.0,
+                 ignore_scalar_label_input: bool = False,
                  use_edge_label_supervision: bool = False,
                 max_edge_label: Optional[int] = None,
                 lambda_edge_label_importance: float = 1.0,
@@ -623,6 +624,7 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
         self.lambda_label_importance = lambda_label_importance
         self.noise_label_factor = noise_label_factor
         self.label_feature_index = label_feature_index
+        self.ignore_scalar_label_input = bool(ignore_scalar_label_input)
         self.use_edge_label_supervision = use_edge_label_supervision
         self.max_edge_label = max_edge_label
         self.lambda_edge_label_importance = lambda_edge_label_importance
@@ -730,11 +732,9 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
             x0[..., self.important_feature_index] = (
                 deg_cls - self.deg_min_val
             ) / self.deg_range_val
-            if logits_lab is not None and self.label_feature_index is not None:
+            if logits_lab is not None and self._label_slice() is not None:
                 lab_cls = torch.argmax(logits_lab, dim=-1).to(x0.dtype)
-                x0[..., self.label_feature_index] = (
-                    lab_cls - self.lab_min_val
-                ) / self.lab_range_val
+                x0 = self._write_label_one_hot(x0, lab_cls.long())
 
         if return_logits:
             return x0, logits_exist, logits_deg, logits_lab
@@ -803,7 +803,16 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
             eps = None
             sigma_t = None
 
-        x_norm = self.layernorm_in(noisy_input)
+        model_input = noisy_input
+        if (
+            self.ignore_scalar_label_input
+            and self.label_feature_index is not None
+            and self.label_feature_index < noisy_input.shape[-1]
+        ):
+            model_input = noisy_input.clone()
+            model_input[..., self.label_feature_index] = 0.0
+
+        x_norm = self.layernorm_in(model_input)
         latent_tokens = self.linear_encoder_input_to_latent(x_norm)
 
         row_ids = torch.arange(
@@ -996,6 +1005,38 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
     def _scaled_label_from_class(self, label_class: torch.Tensor) -> torch.Tensor:
         return (label_class.to(torch.float32) - self.lab_min_val) / self.lab_range_val
 
+    def _label_width(self) -> int:
+        return int(getattr(self, "label_one_hot_width", 0) or 0)
+
+    def _label_slice(self):
+        width = self._label_width()
+        if self.label_feature_index is None or width <= 0:
+            return None
+        start = int(self.label_feature_index)
+        return slice(start, start + width)
+
+    def _label_classes_from_one_hot(self, x: torch.Tensor) -> Optional[torch.Tensor]:
+        label_slice = self._label_slice()
+        if label_slice is None or label_slice.stop > x.shape[-1]:
+            return None
+        return torch.argmax(x[..., label_slice], dim=-1).long()
+
+    def _write_label_one_hot(
+        self,
+        x: torch.Tensor,
+        label_class: torch.Tensor,
+        *,
+        fill_value: float = 0.0,
+    ) -> torch.Tensor:
+        label_slice = self._label_slice()
+        if label_slice is None or label_slice.stop > x.shape[-1]:
+            return x
+        width = label_slice.stop - label_slice.start
+        clipped = torch.clamp(label_class.long(), 0, width - 1)
+        x[..., label_slice] = fill_value
+        x[..., label_slice].scatter_(-1, clipped.unsqueeze(-1), 1.0)
+        return x
+
     def _degree_mask_class(self) -> int:
         return int(self.max_degree) + 1
 
@@ -1033,15 +1074,16 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
             out[..., self.important_feature_index],
         )
 
-        if self.label_feature_index is not None and self.max_label is not None:
+        label_slice = self._label_slice()
+        if label_slice is not None and self.max_label is not None:
             lab_replace = torch.rand(B, N, device=out.device) < replace_prob
             if mode == "absorbing":
-                lab_cls = torch.full(
-                    (B, N),
-                    self._label_mask_class(),
-                    dtype=torch.long,
-                    device=out.device,
+                out[..., label_slice] = torch.where(
+                    lab_replace.unsqueeze(-1),
+                    torch.zeros_like(out[..., label_slice]),
+                    out[..., label_slice],
                 )
+                return out
             else:
                 lab_cls = torch.randint(
                     low=0,
@@ -1049,10 +1091,12 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
                     size=(B, N),
                     device=out.device,
                 )
-            out[..., self.label_feature_index] = torch.where(
-                lab_replace,
-                self._scaled_label_from_class(lab_cls),
-                out[..., self.label_feature_index],
+            replacement = torch.zeros_like(out[..., label_slice])
+            replacement.scatter_(-1, lab_cls.unsqueeze(-1), 1.0)
+            out[..., label_slice] = torch.where(
+                lab_replace.unsqueeze(-1),
+                replacement,
+                out[..., label_slice],
             )
 
         return out
@@ -1069,15 +1113,9 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
             deg_cls = torch.argmax(logits_deg, dim=-1)
             out[..., self.important_feature_index] = self._scaled_degree_from_class(deg_cls).to(out.dtype)
 
-        if (
-            self.project_label_during_sampling
-            and
-            logits_lab is not None
-            and self.label_feature_index is not None
-            and self.label_feature_index < self.input_feature_dimension
-        ):
+        if self.project_label_during_sampling and logits_lab is not None:
             lab_cls = torch.argmax(logits_lab, dim=-1)
-            out[..., self.label_feature_index] = self._scaled_label_from_class(lab_cls).to(out.dtype)
+            out = self._write_label_one_hot(out, lab_cls)
 
         return out
 
@@ -1100,8 +1138,9 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
         # featurewise scaling (reduce noise on degree column)
         noise_scale = torch.ones_like(x) * sigma_t
         noise_scale[..., self.important_feature_index] /= self.noise_degree_factor
-        if self.label_feature_index is not None:
-            noise_scale[..., self.label_feature_index] /= self.noise_label_factor  # <-- NEW
+        label_slice = self._label_slice()
+        if label_slice is not None:
+            noise_scale[..., label_slice] /= self.noise_label_factor
 
 
         x_t = x + eps * noise_scale
@@ -1126,8 +1165,9 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
             0,
             int(self.important_feature_index),
         }
-        if self.label_feature_index is not None:
-            excluded_indices.add(int(self.label_feature_index))
+        label_slice = self._label_slice()
+        if label_slice is not None:
+            excluded_indices.update(range(label_slice.start, label_slice.stop))
         match_indices = [
             index for index in range(D)
             if index not in excluded_indices
@@ -1168,8 +1208,9 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
         gaussian_discrete = self.denoise_discrete_channels and discrete_mode == "none"
         if not gaussian_discrete:
             mask[..., self.important_feature_index] = 0  # degree
-        if (not gaussian_discrete) and self.label_feature_index is not None:
-            mask[..., self.label_feature_index] = 0  # <-- exclude label from ε
+        label_slice = self._label_slice()
+        if (not gaussian_discrete) and label_slice is not None:
+            mask[..., label_slice] = 0
 
         # Continuous epsilon prediction is only meaningful on real/existent
         # rows. Padded rows are handled by the existence and consistency
@@ -1183,8 +1224,9 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
 
         noise_scale = torch.ones_like(target) * sigma_t
         noise_scale[..., self.important_feature_index] /= self.noise_degree_factor
-        if self.label_feature_index is not None:
-            noise_scale[..., self.label_feature_index] /= self.noise_label_factor
+        label_slice = self._label_slice()
+        if label_slice is not None:
+            noise_scale[..., label_slice] /= self.noise_label_factor
         x_t = target + noise_scale * eps
         x0_hat = x_t - noise_scale * pred_eps
 
@@ -1225,8 +1267,9 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
             cont_mask = torch.ones_like(target)
             cont_mask[..., 0] = 0
             cont_mask[..., self.important_feature_index] = 0
-            if self.label_feature_index is not None:
-                cont_mask[..., self.label_feature_index] = 0
+            label_slice = self._label_slice()
+            if label_slice is not None:
+                cont_mask[..., label_slice] = 0
             absent = (target_for_loss[..., 0] < 0.5).float().unsqueeze(-1)
             loss_cons = ((x0_hat * cont_mask)**2 * absent).mean()
         else:
@@ -1236,12 +1279,12 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
         deg_unscaled = target_for_loss[..., self.important_feature_index] * self.deg_range_val + self.deg_min_val
         true_deg_class = torch.clamp(torch.round(deg_unscaled), 0, self.max_degree).long()
 
-        # label classes (like degree)
-        if (self.label_head is not None) and (self.label_feature_index is not None):
-            lab_unscaled = target_for_loss[..., self.label_feature_index] * self.lab_range_val + self.lab_min_val
-            true_lab_class = torch.clamp(torch.round(lab_unscaled), 0, self.max_label).long()
-        else:
-            true_lab_class = None
+        # label classes from the one-hot node-label block
+        true_lab_class = (
+            self._label_classes_from_one_hot(target_for_loss)
+            if self.label_head is not None
+            else None
+        )
 
         # t-weights
         w = 1.0 / (sigma_t.squeeze(-1).squeeze(-1) ** 2 + 1e-4)
@@ -2024,8 +2067,9 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
 
         noise_scale[..., self.important_feature_index] /= self.noise_degree_factor
 
-        if self.label_feature_index is not None and self.label_feature_index < self.input_feature_dimension:
-            noise_scale[..., self.label_feature_index] /= self.noise_label_factor
+        label_slice = self._label_slice()
+        if label_slice is not None and label_slice.stop <= self.input_feature_dimension:
+            noise_scale[..., label_slice] /= self.noise_label_factor
 
         blend = max(0.0, min(1.0, self.condition_x0_sampling_blend))
         prior_logits_exist = prior_logits_deg = prior_logits_lab = None
@@ -2040,8 +2084,9 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
         base[..., 0] = 0.5
         base[..., self.important_feature_index] = 0.5
 
-        if self.label_feature_index is not None and self.label_feature_index < self.input_feature_dimension:
-            base[..., self.label_feature_index] = 0.5
+        label_slice = self._label_slice()
+        if label_slice is not None and label_slice.stop <= self.input_feature_dimension:
+            base[..., label_slice] = 1.0 / max(1, self._label_width())
 
         noise = torch.randn_like(base) * noise_scale
 
@@ -2085,14 +2130,10 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
                     device=device,
                 )
             x[..., self.important_feature_index] = self._scaled_degree_from_class(deg_cls).to(x.dtype)
-            if self.label_feature_index is not None and self.max_label is not None:
+            label_slice = self._label_slice()
+            if label_slice is not None and self.max_label is not None:
                 if discrete_mode == "absorbing":
-                    lab_cls = torch.full(
-                        (B, self.number_of_rows_per_example),
-                        self._label_mask_class(),
-                        dtype=torch.long,
-                        device=device,
-                    )
+                    x[..., label_slice] = 0.0
                 else:
                     lab_cls = torch.randint(
                         low=0,
@@ -2100,7 +2141,7 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
                         size=(B, self.number_of_rows_per_example),
                         device=device,
                     )
-                x[..., self.label_feature_index] = self._scaled_label_from_class(lab_cls).to(x.dtype)
+                    x = self._write_label_one_hot(x, lab_cls)
 
         # autocast for speed on GPU (skip on unsupported backends)
         if device.type == "cuda":
@@ -2126,12 +2167,13 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
                 gaussian_discrete = self.denoise_discrete_channels and discrete_mode == "none"
                 if not gaussian_discrete:
                     denoise_mask[..., self.important_feature_index] = 0.0
+                label_slice = self._label_slice()
                 if (
                     (not gaussian_discrete)
-                    and self.label_feature_index is not None
-                    and self.label_feature_index < self.input_feature_dimension
+                    and label_slice is not None
+                    and label_slice.stop <= self.input_feature_dimension
                 ):
-                    denoise_mask[..., self.label_feature_index] = 0.0
+                    denoise_mask[..., label_slice] = 0.0
 
                 for i in range(total_steps - 1):
                     sigma_t   = sigmas[i]
@@ -2255,7 +2297,7 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
                     and self.label_feature_index is not None
                 ):
                     lab_cls = torch.argmax(logits_lab, dim=-1)
-                    x[..., self.label_feature_index] = self._scaled_label_from_class(lab_cls).to(x.dtype)
+                    x = self._write_label_one_hot(x, lab_cls)
                     self._last_lab_classes = lab_cls.detach().cpu()
         if edge_state is not None:
             self._last_edge_probabilities = edge_state.detach().cpu()
@@ -2570,7 +2612,7 @@ class ConditionalNodeGenerator:
                 use_dim_reduction: bool = False,
                 dim_reduction_method: str = "pca",
                 dim_reduction_components: int = 125,
-                dim_reduction_keep_prefix: int = 3,
+                dim_reduction_keep_prefix: Union[int, str] = 3,
                 pca_whiten: bool = False,
                 use_condition_dim_reduction: bool = False,
                 condition_dim_reduction_method: str = "svd",
@@ -2674,7 +2716,13 @@ class ConditionalNodeGenerator:
         self.use_dim_reduction = bool(use_dim_reduction)
         self.dim_reduction_method = str(dim_reduction_method).lower()
         self.dim_reduction_components = int(dim_reduction_components)
-        self.dim_reduction_keep_prefix = int(dim_reduction_keep_prefix)
+        self.dim_reduction_keep_prefix = dim_reduction_keep_prefix
+        self._auto_dim_reduction_keep_prefix = (
+            isinstance(dim_reduction_keep_prefix, str)
+            and dim_reduction_keep_prefix.lower() == "auto"
+        )
+        if not self._auto_dim_reduction_keep_prefix:
+            self.dim_reduction_keep_prefix = int(dim_reduction_keep_prefix)
         self.pca_whiten = bool(pca_whiten)
         self.use_condition_dim_reduction = bool(use_condition_dim_reduction)
         self.condition_dim_reduction_method = str(condition_dim_reduction_method).lower()
@@ -3014,20 +3062,47 @@ class ConditionalNodeGenerator:
 
         exist_mask = (X_array[..., 0] >= 0.5)
 
-        # ---- label stats (like degree). Use only existent rows so the
-        # class mapping matches the scaler/loss rows and padded zeros do not
-        # become artificial labels.
-        lab_idx = self.label_feature_index
-        raw_labels = X_array[..., lab_idx]                       # (B, N)
-        existing_raw_labels = raw_labels[exist_mask]
-        if existing_raw_labels.size == 0:
-            existing_raw_labels = raw_labels.reshape(-1)
-        self.L_max = int(existing_raw_labels.max())              # global max class id
+        # ---- label stats. Labels are represented categorically as a one-hot
+        # block beginning at label_feature_index; no scalar/ordinal label input.
+        lab_idx = int(self.label_feature_index)
+        configured_label_width = int(
+            getattr(self, "_node_label_one_hot_width", 0) or 0
+        )
+        if configured_label_width <= 0:
+            configured_label_width = max(0, int(X_array.shape[-1]) - lab_idx)
+        configured_label_width = max(
+            0,
+            min(configured_label_width, int(X_array.shape[-1]) - lab_idx),
+        )
+        if configured_label_width <= 0:
+            raise ValueError(
+                "One-hot node labels are required: expected a label block "
+                f"starting at column {lab_idx}."
+            )
 
-        lab_col = existing_raw_labels.reshape(-1, 1)
-        lab_scaler = MinMaxScaler().fit(lab_col)                 # MinMax only on label col
-        lab_min_val   = float(lab_scaler.data_min_[0])
-        lab_range_val =float(lab_scaler.data_range_[0]) or 1e-8
+        self.label_one_hot_width = configured_label_width
+        label_block = X_array[..., lab_idx : lab_idx + self.label_one_hot_width]
+        raw_label_classes = np.argmax(label_block, axis=-1).astype(np.int64)
+        existing_raw_labels = raw_label_classes[exist_mask]
+        if existing_raw_labels.size == 0:
+            existing_raw_labels = raw_label_classes.reshape(-1)
+
+        self.L_max = int(self.label_one_hot_width - 1)
+        lab_min_val = 0.0
+        lab_range_val = 1.0
+        label_count = int(self.label_one_hot_width)
+
+        if getattr(self, "_auto_dim_reduction_keep_prefix", False):
+            self.dim_reduction_keep_prefix = min(
+                int(X_array.shape[-1]),
+                2 + label_count,
+            )
+            if self.verbose:
+                print(
+                    "Auto dim_reduction_keep_prefix: keeping "
+                    f"{self.dim_reduction_keep_prefix} columns "
+                    f"(existence, degree, {label_count} label one-hot bits)."
+                )
         
         # 
        
@@ -3180,6 +3255,7 @@ class ConditionalNodeGenerator:
             label_class_weight=label_class_weight,
             label_min_val=lab_min_val,
             label_range_val=lab_range_val,
+            ignore_scalar_label_input=False,
             use_edge_label_supervision=use_edge_label_supervision,
             max_edge_label=E_max_label,
             lambda_edge_label_importance=getattr(self, "lambda_edge_label_importance", 1.0),
@@ -3336,10 +3412,11 @@ class ConditionalNodeGenerator:
             (len(node_encodings_list), self.L_max + 1),
             dtype=np.float32,
         )
+        label_start = int(self.label_feature_index)
+        label_stop = label_start + int(self.label_one_hot_width)
         for graph_index, node_encoding in enumerate(node_encodings_list):
-            raw_labels = np.rint(
-                np.asarray(node_encoding)[:, self.label_feature_index]
-            ).astype(np.int64)
+            label_block = np.asarray(node_encoding)[:, label_start:label_stop]
+            raw_labels = np.argmax(label_block, axis=1).astype(np.int64)
             raw_labels = np.clip(raw_labels, 0, self.L_max)
             label_histograms[graph_index] = np.bincount(
                 raw_labels,
@@ -3565,9 +3642,14 @@ class ConditionalNodeGenerator:
         gen_orig = self._inverse_transform_input(gen_np)
         lab_classes = getattr(self.model, "_last_lab_classes", None)
         if self.project_label_during_sampling and lab_classes is not None:
-            lab_classes = lab_classes.cpu().numpy()
-            for i in range(len(gen_orig)):
-                gen_orig[i][..., self.label_feature_index] = np.clip(lab_classes[i], 0, self.L_max)
+            lab_classes = lab_classes.cpu().numpy().astype(int)
+            label_slice = self._label_slice()
+            if label_slice is not None:
+                for i in range(len(gen_orig)):
+                    gen_orig[i][..., label_slice] = 0.0
+                    clipped = np.clip(lab_classes[i], 0, self.L_max)
+                    rows = np.arange(gen_orig[i].shape[0])
+                    gen_orig[i][rows, label_slice.start + clipped] = 1.0
 
         final_degree_logits = None
         final_label_logits = None
@@ -3835,13 +3917,18 @@ class ConditionalNodeGenerator:
                     )
                     assigned_labels = np.zeros(node_count, dtype=np.int64)
                     assigned_labels[row_indices] = label_slots[slot_indices]
+                    label_start = int(self.label_feature_index)
+                    label_stop = label_start + int(self.label_one_hot_width)
+                    encoding[active_indices, label_start:label_stop] = 0.0
                     encoding[
                         active_indices,
-                        self.label_feature_index,
-                    ] = assigned_labels
+                        label_start + assigned_labels,
+                    ] = 1.0
+                label_start = int(self.label_feature_index)
+                label_stop = label_start + int(self.label_one_hot_width)
                 encoding[
                     encoding[:, 0] < 0.5,
-                    self.label_feature_index,
+                    label_start:label_stop,
                 ] = 0.0
                 predicted_histograms.append(histogram)
 
