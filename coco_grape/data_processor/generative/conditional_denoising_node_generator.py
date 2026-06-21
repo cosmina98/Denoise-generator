@@ -2751,6 +2751,21 @@ class ConditionalNodeGenerator:
 
         return target_device
 
+    def _label_width(self) -> int:
+        """Number of one-hot node-label columns in the generated node table."""
+        width = int(getattr(self, "label_one_hot_width", 0) or 0)
+        if width <= 0:
+            width = int(getattr(self, "_node_label_one_hot_width", 0) or 0)
+        return width
+
+    def _label_slice(self):
+        """Slice covering the one-hot node-label block in outer generator arrays."""
+        width = self._label_width()
+        if self.label_feature_index is None or width <= 0:
+            return None
+        start = int(self.label_feature_index)
+        return slice(start, start + width)
+
 
     def _fit_scalers(self, X_array, y_array):
         self._fit_reducer(X_array)
