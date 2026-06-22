@@ -1744,8 +1744,13 @@ class DecompositionalEncoderDecoder(object):
         if self.node_embeddings_to_graph_generator is not None:
             self.node_embeddings_to_graph_generator._idx_to_label = self._idx_to_label
             self.node_embeddings_to_graph_generator._node_label_one_hot_width = len(label_to_idx)
+
+        # Also expose the one-hot label width to the conditional node generator.
+        # Without this, it cannot know where the label block ends and may treat
+        # the whole NSPPK/node-feature tail as labels.
+        if self.conditioning_to_node_embeddings_generator is not None:
             conditional_generator = getattr(
-                self.node_embeddings_to_graph_generator,
+                self.conditioning_to_node_embeddings_generator,
                 "conditional_node_generator",
                 None,
             )
