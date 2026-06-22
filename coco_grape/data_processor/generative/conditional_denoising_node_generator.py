@@ -407,6 +407,7 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
                  label_class_weight: Optional[Union[torch.Tensor, Sequence[float]]] = None,
                  label_min_val: float = 0.0,
                  label_range_val: float = 1.0,
+                 label_one_hot_width: int = 0,
                  ignore_scalar_label_input: bool = False,
                  use_edge_label_supervision: bool = False,
                 max_edge_label: Optional[int] = None,
@@ -624,6 +625,7 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
         self.lambda_label_importance = lambda_label_importance
         self.noise_label_factor = noise_label_factor
         self.label_feature_index = label_feature_index
+        self.label_one_hot_width = int(label_one_hot_width or 0)
         self.ignore_scalar_label_input = bool(ignore_scalar_label_input)
         self.use_edge_label_supervision = use_edge_label_supervision
         self.max_edge_label = max_edge_label
@@ -3106,6 +3108,11 @@ class ConditionalNodeGenerator:
         lab_min_val = 0.0
         lab_range_val = 1.0
         label_count = int(self.label_one_hot_width)
+        if self.verbose:
+            print(
+                "One-hot node-label control: "
+                f"{label_count} labels starting at column {lab_idx}."
+            )
 
         if getattr(self, "_auto_dim_reduction_keep_prefix", False):
             self.dim_reduction_keep_prefix = min(
@@ -3270,6 +3277,7 @@ class ConditionalNodeGenerator:
             label_class_weight=label_class_weight,
             label_min_val=lab_min_val,
             label_range_val=lab_range_val,
+            label_one_hot_width=self.label_one_hot_width,
             ignore_scalar_label_input=False,
             use_edge_label_supervision=use_edge_label_supervision,
             max_edge_label=E_max_label,
