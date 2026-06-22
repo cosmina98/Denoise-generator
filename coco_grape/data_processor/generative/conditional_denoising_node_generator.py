@@ -3086,7 +3086,11 @@ class ConditionalNodeGenerator:
             getattr(self, "_node_label_one_hot_width", 0) or 0
         )
         if configured_label_width <= 0:
-            configured_label_width = max(0, int(X_array.shape[-1]) - lab_idx)
+            raise ValueError(
+                "Missing _node_label_one_hot_width. The encoder must set the "
+                "number of dataset label classes before fitting the conditional "
+                "node generator."
+            )
         configured_label_width = max(
             0,
             min(configured_label_width, int(X_array.shape[-1]) - lab_idx),
