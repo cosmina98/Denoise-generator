@@ -430,11 +430,6 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
                 joint_edge_update_momentum: float = 0.5,
                 joint_edge_threshold: float = 0.5,
                 joint_edge_message_passing_steps: int = 2,
-                use_true_edge_state_for_label_training: bool = False,
-                use_label_feedback_in_sampling: bool = False,
-                label_feedback_start_sigma: float = 0.5,
-                label_feedback_mode: str = "soft",
-                label_feedback_temperature: float = 1.0,
                 project_existence_during_sampling: bool = True,
                 project_degree_during_sampling: bool = True,
                 project_label_during_sampling: bool = True,
@@ -496,15 +491,6 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
         self.joint_edge_update_momentum = float(joint_edge_update_momentum)
         self.joint_edge_threshold = float(joint_edge_threshold)
         self.joint_edge_message_passing_steps = max(1, int(joint_edge_message_passing_steps))
-        self.use_true_edge_state_for_label_training = bool(
-            use_true_edge_state_for_label_training
-        )
-        self.use_label_feedback_in_sampling = bool(use_label_feedback_in_sampling)
-        self.label_feedback_start_sigma = float(label_feedback_start_sigma)
-        self.label_feedback_mode = str(label_feedback_mode).lower()
-        if self.label_feedback_mode not in {"soft", "hard"}:
-            raise ValueError("label_feedback_mode must be 'soft' or 'hard'")
-        self.label_feedback_temperature = max(float(label_feedback_temperature), 1e-6)
         self.project_existence_during_sampling = bool(project_existence_during_sampling)
         self.project_degree_during_sampling = bool(project_degree_during_sampling)
         self.project_label_during_sampling = bool(project_label_during_sampling)
@@ -1444,8 +1430,6 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
                 node_mask,
                 diffusion_time_step,
             )
-            if self.use_true_edge_state_for_label_training:
-                edge_state = clean_adj
 
         # replace the current forward() calls in both training_step and validation_step:
         need_latents = (
@@ -1669,8 +1653,6 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
                 node_mask,
                 diffusion_time_step,
             )
-            if self.use_true_edge_state_for_label_training:
-                edge_state = clean_adj
 
 # replace the current forward() calls in both training_step and validation_step:
         need_latents = (
@@ -2233,25 +2215,6 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
                     project_sigma_threshold = float(
                         getattr(self, "discrete_projection_sigma_threshold", 0.25)
                     )
-                    label_slice = self._label_slice()
-                    should_feedback_labels = (
-                        self.use_label_feedback_in_sampling
-                        and logits_lab_next is not None
-                        and label_slice is not None
-                        and label_slice.stop <= self.input_feature_dimension
-                        and float(sigma_next.detach().cpu()) <= self.label_feedback_start_sigma
-                    )
-                    if should_feedback_labels:
-                        if self.label_feedback_mode == "hard":
-                            lab_cls = torch.argmax(logits_lab_next, dim=-1)
-                            x = self._write_label_one_hot(x, lab_cls)
-                        else:
-                            label_probs = torch.softmax(
-                                logits_lab_next / self.label_feedback_temperature,
-                                dim=-1,
-                            ).to(dtype=x.dtype)
-                            x[..., label_slice] = label_probs
-
                     should_project_discrete = (
                         getattr(self, "discrete_diffusion_mode", "none") != "none"
                         and float(sigma_next.detach().cpu()) <= project_sigma_threshold
@@ -2640,11 +2603,6 @@ class ConditionalNodeGenerator:
                 joint_edge_update_momentum: float = 0.5,
                 joint_edge_threshold: float = 0.5,
                 joint_edge_message_passing_steps: int = 2,
-                use_true_edge_state_for_label_training: bool = False,
-                use_label_feedback_in_sampling: bool = False,
-                label_feedback_start_sigma: float = 0.5,
-                label_feedback_mode: str = "soft",
-                label_feedback_temperature: float = 1.0,
                 random_row_permutation: bool = False,
                 use_matched_row_loss: bool = False,
                 project_existence_during_sampling: bool = True,
@@ -2734,15 +2692,6 @@ class ConditionalNodeGenerator:
         self.joint_edge_update_momentum = float(joint_edge_update_momentum)
         self.joint_edge_threshold = float(joint_edge_threshold)
         self.joint_edge_message_passing_steps = max(1, int(joint_edge_message_passing_steps))
-        self.use_true_edge_state_for_label_training = bool(
-            use_true_edge_state_for_label_training
-        )
-        self.use_label_feedback_in_sampling = bool(use_label_feedback_in_sampling)
-        self.label_feedback_start_sigma = float(label_feedback_start_sigma)
-        self.label_feedback_mode = str(label_feedback_mode).lower()
-        if self.label_feedback_mode not in {"soft", "hard"}:
-            raise ValueError("label_feedback_mode must be 'soft' or 'hard'")
-        self.label_feedback_temperature = max(float(label_feedback_temperature), 1e-6)
         self.random_row_permutation = bool(random_row_permutation)
         self.use_matched_row_loss = bool(use_matched_row_loss)
         self.project_existence_during_sampling = bool(project_existence_during_sampling)
@@ -3357,11 +3306,6 @@ class ConditionalNodeGenerator:
             joint_edge_update_momentum=self.joint_edge_update_momentum,
             joint_edge_threshold=self.joint_edge_threshold,
             joint_edge_message_passing_steps=self.joint_edge_message_passing_steps,
-            use_true_edge_state_for_label_training=self.use_true_edge_state_for_label_training,
-            use_label_feedback_in_sampling=self.use_label_feedback_in_sampling,
-            label_feedback_start_sigma=self.label_feedback_start_sigma,
-            label_feedback_mode=self.label_feedback_mode,
-            label_feedback_temperature=self.label_feedback_temperature,
             project_existence_during_sampling=self.project_existence_during_sampling,
             project_degree_during_sampling=self.project_degree_during_sampling,
             project_label_during_sampling=self.project_label_during_sampling,
