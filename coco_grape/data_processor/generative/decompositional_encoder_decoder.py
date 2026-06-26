@@ -141,6 +141,86 @@ def _restore_numeric_label(label):
     return label
 
 
+_MOLECULAR_ALLOWED_VALENCE = {
+    "H": 1,
+    "B": 3,
+    "C": 4,
+    "N": 3,
+    "O": 2,
+    "F": 1,
+    "P": 5,
+    "S": 6,
+    "CL": 1,
+    "BR": 1,
+    "I": 1,
+}
+
+
+def _canonical_atom_label(label):
+    if label is None:
+        return None
+    text = str(_restore_numeric_label(label)).strip()
+    if not text:
+        return None
+    if len(text) == 1:
+        return text.upper()
+    return text[0].upper() + text[1:].lower()
+
+
+def _allowed_valence_for_label(label):
+    canonical = _canonical_atom_label(label)
+    if canonical is None:
+        return None
+    return _MOLECULAR_ALLOWED_VALENCE.get(canonical.upper())
+
+
+def _bond_order_from_label(label):
+    if label is None:
+        return 1.0
+    label = _restore_numeric_label(label)
+    if isinstance(label, (int, np.integer)):
+        value = int(label)
+        if value in {1, 2, 3}:
+            return float(value)
+        if value == 4:
+            return 1.5
+        return 1.0
+    if isinstance(label, (float, np.floating)):
+        value = float(label)
+        if np.isfinite(value) and value > 0:
+            if abs(value - round(value)) < 1e-6 and int(round(value)) in {1, 2, 3}:
+                return float(int(round(value)))
+            return min(max(value, 1.0), 3.0)
+        return 1.0
+    text = str(label).strip().lower()
+    if text in {"single", "single_bond", "bond_1", "1"}:
+        return 1.0
+    if text in {"double", "double_bond", "bond_2", "2"}:
+        return 2.0
+    if text in {"triple", "triple_bond", "bond_3", "3"}:
+        return 3.0
+    if text in {"aromatic", "arom", "bond_4", "4"}:
+        return 1.5
+    return 1.0
+
+
+def _label_from_bond_order(order, original_label):
+    original = _restore_numeric_label(original_label)
+    rounded = int(round(float(order)))
+    if isinstance(original, (int, np.integer)):
+        return rounded
+    if isinstance(original, (float, np.floating)):
+        return float(order)
+    text = str(original_label).strip().lower()
+    if rounded == 1:
+        return "single_bond" if "bond" in text else "single"
+    if rounded == 2:
+        return "double_bond" if "bond" in text else "double"
+    if rounded == 3:
+        return "triple_bond" if "bond" in text else "triple"
+    return original_label
+
+
 def scaled_slerp(v0: np.ndarray, v1: np.ndarray, t: float) -> np.ndarray:
     """
     Spherical linear interpolation (slerp) between vectors v0 and v1,
@@ -237,7 +317,9 @@ class DecompositionalNodeEncoderDecoder(object):
         augmentation_noise: float = 1e-2,
         enforce_connectivity: bool = True,
         degree_slack_penalty: float = 1e6,
-        warm_start_mst: bool = True
+        warm_start_mst: bool = True,
+        use_molecular_valency_projection: bool = False,
+        molecular_valency_downgrade_bonds: bool = True,
     ) -> None:
         """
         Initializes the encoder-decoder with classifiers and configuration options.
@@ -270,8 +352,102 @@ class DecompositionalNodeEncoderDecoder(object):
         self.enforce_connectivity       = enforce_connectivity
         self.degree_slack_penalty       = degree_slack_penalty
         self.warm_start_mst             = warm_start_mst
+        self.use_molecular_valency_projection = bool(use_molecular_valency_projection)
+        self.molecular_valency_downgrade_bonds = bool(molecular_valency_downgrade_bonds)
         self._conditional_edge_provider = None
         self._last_conditioning_vectors = None
+
+    def _project_molecular_valency(
+        self,
+        adj_mtx: np.ndarray,
+        node_labels: np.ndarray,
+        edge_labels: np.ndarray,
+        prob_matrix: Optional[np.ndarray] = None,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Enforce simple atom-valency limits for molecule-like labels.
+
+        This is intentionally conservative and dataset-agnostic by default:
+        if labels are not recognizable atom symbols, the graph is returned
+        unchanged.  For molecular datasets, edges are greedily kept in
+        descending probability order while respecting valency budgets.
+        """
+        if not self.use_molecular_valency_projection:
+            return adj_mtx, edge_labels
+
+        n_nodes = int(adj_mtx.shape[0])
+        if n_nodes == 0:
+            return adj_mtx, edge_labels
+
+        budgets = []
+        for label in node_labels[:n_nodes]:
+            budget = _allowed_valence_for_label(label)
+            if budget is None:
+                return adj_mtx, edge_labels
+            budgets.append(float(budget))
+
+        if not np.any(adj_mtx):
+            return adj_mtx, edge_labels
+
+        directed_labels: Dict[Tuple[int, int], Any] = {}
+        edge_idx = 0
+        for i in range(n_nodes):
+            for j in range(n_nodes):
+                if adj_mtx[i, j] != 0:
+                    if edge_idx < len(edge_labels):
+                        directed_labels[(i, j)] = edge_labels[edge_idx]
+                    edge_idx += 1
+
+        candidates = []
+        for i in range(n_nodes):
+            for j in range(i + 1, n_nodes):
+                if adj_mtx[i, j] == 0 and adj_mtx[j, i] == 0:
+                    continue
+                label = directed_labels.get((i, j), directed_labels.get((j, i), 1))
+                order = _bond_order_from_label(label)
+                if prob_matrix is not None:
+                    score = float(0.5 * (prob_matrix[i, j] + prob_matrix[j, i]))
+                else:
+                    score = 1.0
+                candidates.append((score, i, j, label, order))
+
+        candidates.sort(key=lambda item: item[0], reverse=True)
+
+        remaining = np.asarray(budgets, dtype=float)
+        projected_adj = np.zeros_like(adj_mtx, dtype=int)
+        kept: Dict[Tuple[int, int], Any] = {}
+
+        for _, i, j, label, order in candidates:
+            allowed = min(float(order), remaining[i], remaining[j])
+            if allowed < 1.0:
+                continue
+            if self.molecular_valency_downgrade_bonds:
+                if allowed >= 3.0:
+                    kept_order = 3.0
+                elif allowed >= 2.0:
+                    kept_order = 2.0
+                else:
+                    kept_order = 1.0
+            else:
+                kept_order = float(order)
+                if kept_order > allowed:
+                    continue
+
+            projected_adj[i, j] = 1
+            projected_adj[j, i] = 1
+            remaining[i] -= kept_order
+            remaining[j] -= kept_order
+            kept[(i, j)] = _label_from_bond_order(kept_order, label)
+
+        projected_edge_labels = []
+        for i in range(n_nodes):
+            for j in range(n_nodes):
+                if projected_adj[i, j] == 0:
+                    continue
+                key = (min(i, j), max(i, j))
+                projected_edge_labels.append(kept.get(key, 1))
+
+        return projected_adj, np.asarray(projected_edge_labels, dtype=object)
 
     def optimize_adjacency_matrix(
         self,
@@ -1139,8 +1315,20 @@ class DecompositionalNodeEncoderDecoder(object):
         
         graphs = []
         # Step 4: Reconstruct each graph and filter out non-existent nodes.
-        for encodings, node_labels, edge_labels, adj_mtx in zip(
-                original_node_encodings_list, predicted_node_labels_list, predicted_edge_labels_list, adj_mtx_list):
+        for graph_index, (encodings, node_labels, edge_labels, adj_mtx) in enumerate(zip(
+                original_node_encodings_list, predicted_node_labels_list, predicted_edge_labels_list, adj_mtx_list)):
+            prob_matrix = None
+            if (
+                predicted_prob_matrices is not None
+                and graph_index < len(predicted_prob_matrices)
+            ):
+                prob_matrix = np.asarray(predicted_prob_matrices[graph_index], dtype=float)
+            adj_mtx, edge_labels = self._project_molecular_valency(
+                np.asarray(adj_mtx, dtype=int),
+                node_labels,
+                np.asarray(edge_labels, dtype=object),
+                prob_matrix=prob_matrix,
+            )
             # Create the initial graph from the predicted adjacency matrix.
             graph = nx.from_numpy_array(adj_mtx)
             
@@ -1846,6 +2034,7 @@ class DecompositionalEncoderDecoder(object):
                 node_feats,
                 adj_mtx_list=adj_mtx_list,
                 predicted_edge_labels_list=generated_edge_labels,
+                predicted_prob_matrices=generated_edge_probabilities,
                 conditional_graph_encodings=conditioning_vectors,
             )
         return self.node_embeddings_to_graph_generator.decode(node_feats)
