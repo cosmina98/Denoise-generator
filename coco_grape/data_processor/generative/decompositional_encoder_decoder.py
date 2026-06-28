@@ -1944,6 +1944,7 @@ class DecompositionalEncoderDecoder(object):
             )
             if conditional_generator is not None:
                 conditional_generator._node_label_one_hot_width = len(label_to_idx)
+                conditional_generator._idx_to_label = self._idx_to_label
 
         cond_encs = self.graph_encode(graphs)
         if self.node_embeddings_to_graph_generator is not None:

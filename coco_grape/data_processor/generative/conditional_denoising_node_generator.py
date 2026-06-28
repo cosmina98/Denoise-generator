@@ -16,6 +16,43 @@ from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.linear_model import LogisticRegression, Ridge
 from scipy.optimize import linear_sum_assignment
 
+_MOLECULAR_DYNAMIC_ATOM_VALENCE = {
+    "H": 1.0,
+    "C": 4.0,
+    "N": 3.0,
+    "O": 2.0,
+    "F": 1.0,
+    "P": 5.0,
+    "S": 6.0,
+    "CL": 1.0,
+    "BR": 1.0,
+    "I": 1.0,
+}
+
+_MOLECULAR_DYNAMIC_ATOM_WEIGHT = {
+    "H": 1.008,
+    "C": 12.011,
+    "N": 14.007,
+    "O": 15.999,
+    "F": 18.998,
+    "P": 30.974,
+    "S": 32.06,
+    "CL": 35.45,
+    "BR": 79.904,
+    "I": 126.904,
+}
+
+
+def _canonical_dynamic_atom_label(label: Any) -> Optional[str]:
+    text = str(label).strip()
+    if not text:
+        return None
+    upper = text.upper()
+    if upper in {"CL", "BR"}:
+        return upper
+    return text[0].upper()
+
+
 # --- Utility Context Manager ---
 @contextlib.contextmanager
 def suppress_output():
@@ -433,7 +470,11 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
                 project_existence_during_sampling: bool = True,
                 project_degree_during_sampling: bool = True,
                 project_label_during_sampling: bool = True,
-                use_matched_row_loss: bool = False
+                use_matched_row_loss: bool = False,
+                use_dynamic_molecular_features: bool = False,
+                dynamic_molecular_feature_scale: float = 1.0,
+                dynamic_atom_valences: Optional[Sequence[float]] = None,
+                dynamic_atom_weights: Optional[Sequence[float]] = None
                  
                  
                  
@@ -495,6 +536,8 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
         self.project_degree_during_sampling = bool(project_degree_during_sampling)
         self.project_label_during_sampling = bool(project_label_during_sampling)
         self.use_matched_row_loss = bool(use_matched_row_loss)
+        self.use_dynamic_molecular_features = bool(use_dynamic_molecular_features)
+        self.dynamic_molecular_feature_scale = float(dynamic_molecular_feature_scale)
         if self.discrete_diffusion_mode not in {"none", "random_replace", "absorbing"}:
             raise ValueError(
                 "discrete_diffusion_mode must be one of "
@@ -575,6 +618,40 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
         self.layernorm_in = nn.LayerNorm(input_feature_dimension, elementwise_affine=True)
         self.linear_encoder_input_to_latent = nn.Linear(input_feature_dimension, latent_embedding_dimension)
         self.linear_encoder_condition_to_latent = nn.Linear(condition_feature_dimension, latent_embedding_dimension)
+        if self.use_dynamic_molecular_features:
+            if dynamic_atom_valences is None or dynamic_atom_weights is None:
+                raise ValueError(
+                    "Dynamic molecular features require per-label atom valences "
+                    "and atom weights."
+                )
+            dynamic_atom_valences = torch.as_tensor(
+                dynamic_atom_valences,
+                dtype=torch.float32,
+            )
+            dynamic_atom_weights = torch.as_tensor(
+                dynamic_atom_weights,
+                dtype=torch.float32,
+            )
+            if dynamic_atom_valences.numel() != int(label_one_hot_width):
+                raise ValueError(
+                    "dynamic_atom_valences must match label_one_hot_width "
+                    f"({dynamic_atom_valences.numel()} != {label_one_hot_width})."
+                )
+            if dynamic_atom_weights.numel() != int(label_one_hot_width):
+                raise ValueError(
+                    "dynamic_atom_weights must match label_one_hot_width "
+                    f"({dynamic_atom_weights.numel()} != {label_one_hot_width})."
+                )
+            self.dynamic_molecular_feature_encoder = nn.Linear(
+                5,
+                latent_embedding_dimension,
+            )
+        else:
+            dynamic_atom_valences = torch.empty(0, dtype=torch.float32)
+            dynamic_atom_weights = torch.empty(0, dtype=torch.float32)
+            self.dynamic_molecular_feature_encoder = None
+        self.register_buffer("dynamic_atom_valences", dynamic_atom_valences)
+        self.register_buffer("dynamic_atom_weights", dynamic_atom_weights)
 
         self.row_embedding = nn.Embedding(
             number_of_rows_per_example,
@@ -816,6 +893,17 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
 
         x_norm = self.layernorm_in(model_input)
         latent_tokens = self.linear_encoder_input_to_latent(x_norm)
+        dynamic_molecular_features = self._dynamic_molecular_features(
+            model_input,
+            edge_state,
+        )
+        if dynamic_molecular_features is not None:
+            latent_tokens = latent_tokens + (
+                self.dynamic_molecular_feature_scale
+                * self.dynamic_molecular_feature_encoder(
+                    dynamic_molecular_features.to(latent_tokens.dtype)
+                )
+            )
 
         row_ids = torch.arange(
             self.number_of_rows_per_example,
@@ -1016,6 +1104,65 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
             return None
         start = int(self.label_feature_index)
         return slice(start, start + width)
+
+    def _dynamic_molecular_features(
+        self,
+        model_input: torch.Tensor,
+        edge_state: Optional[torch.Tensor],
+    ) -> Optional[torch.Tensor]:
+        """DiGress-like molecular state features recomputed from the current x_t."""
+        if self.dynamic_molecular_feature_encoder is None:
+            return None
+
+        label_slice = self._label_slice()
+        if label_slice is None or label_slice.stop > model_input.shape[-1]:
+            return None
+
+        label_values = model_input[..., label_slice].to(torch.float32)
+        label_probs = torch.softmax(label_values, dim=-1).to(model_input.dtype)
+        atom_valences = self.dynamic_atom_valences.to(
+            device=model_input.device,
+            dtype=model_input.dtype,
+        )
+        atom_weights = self.dynamic_atom_weights.to(
+            device=model_input.device,
+            dtype=model_input.dtype,
+        )
+
+        allowed_valency = torch.matmul(label_probs, atom_valences)
+        atom_weight = torch.matmul(label_probs, atom_weights)
+        existence = model_input[..., 0].clamp(0.0, 1.0)
+
+        if edge_state is None:
+            current_valency = torch.zeros_like(allowed_valency)
+        else:
+            # The current generator tracks edge existence probabilities rather
+            # than categorical bond orders, so this is a single-bond valency
+            # approximation of DiGress' molecular extras.
+            edge_probs = edge_state.to(device=model_input.device, dtype=model_input.dtype)
+            edge_probs = edge_probs.clamp(0.0, 1.0)
+            current_valency = edge_probs.sum(dim=-1)
+
+        valence_deficit = allowed_valency - current_valency
+        max_valency = atom_valences.max().clamp_min(1.0)
+        max_weight = atom_weights.max().clamp_min(1.0)
+        graph_weight = (atom_weight * existence).sum(dim=-1, keepdim=True)
+        graph_weight = graph_weight / (
+            max_weight * max(1, self.number_of_rows_per_example)
+        )
+        graph_weight = graph_weight.expand_as(atom_weight)
+
+        features = torch.stack(
+            [
+                current_valency / max_valency,
+                allowed_valency / max_valency,
+                valence_deficit / max_valency,
+                atom_weight / max_weight,
+                graph_weight,
+            ],
+            dim=-1,
+        )
+        return features * existence.unsqueeze(-1)
 
     def _label_classes_from_one_hot(self, x: torch.Tensor) -> Optional[torch.Tensor]:
         label_slice = self._label_slice()
@@ -2620,6 +2767,8 @@ class ConditionalNodeGenerator:
                 condition_dim_reduction_method: str = "svd",
                 condition_dim_reduction_components: int = 128,
                 condition_dim_reduction_keep_prefix: int = 0,
+                use_dynamic_molecular_features: bool = False,
+                dynamic_molecular_feature_scale: float = 1.0,
                 random_state: int = 42
                 
 
@@ -2730,6 +2879,8 @@ class ConditionalNodeGenerator:
         self.condition_dim_reduction_method = str(condition_dim_reduction_method).lower()
         self.condition_dim_reduction_components = int(condition_dim_reduction_components)
         self.condition_dim_reduction_keep_prefix = int(condition_dim_reduction_keep_prefix)
+        self.use_dynamic_molecular_features = bool(use_dynamic_molecular_features)
+        self.dynamic_molecular_feature_scale = float(dynamic_molecular_feature_scale)
         self.random_state = random_state
         self.reducer = None
         self._orig_tail_dim = None
@@ -2767,6 +2918,46 @@ class ConditionalNodeGenerator:
             return None
         start = int(self.label_feature_index)
         return slice(start, start + width)
+
+    def _infer_dynamic_molecular_label_features(self):
+        """Return per-label atom valences/weights when labels are molecular."""
+        if not self.use_dynamic_molecular_features:
+            return False, None, None
+
+        width = self._label_width()
+        idx_to_label = getattr(self, "_idx_to_label", None)
+        if not idx_to_label or width <= 0:
+            if self.verbose:
+                print(
+                    "Dynamic molecular features requested, but no node-label "
+                    "mapping is available; disabling them."
+                )
+            return False, None, None
+
+        valences = []
+        weights = []
+        for idx in range(width):
+            atom = _canonical_dynamic_atom_label(idx_to_label.get(idx))
+            if (
+                atom not in _MOLECULAR_DYNAMIC_ATOM_VALENCE
+                or atom not in _MOLECULAR_DYNAMIC_ATOM_WEIGHT
+            ):
+                if self.verbose:
+                    print(
+                        "Dynamic molecular features requested, but label "
+                        f"{idx_to_label.get(idx)!r} is not a known atom; "
+                        "disabling them for this dataset."
+                    )
+                return False, None, None
+            valences.append(_MOLECULAR_DYNAMIC_ATOM_VALENCE[atom])
+            weights.append(_MOLECULAR_DYNAMIC_ATOM_WEIGHT[atom])
+
+        if self.verbose:
+            print(
+                "Dynamic molecular features enabled from current denoising "
+                f"state for labels {[idx_to_label.get(i) for i in range(width)]}."
+            )
+        return True, valences, weights
 
 
     def _fit_scalers(self, X_array, y_array):
@@ -3245,6 +3436,11 @@ class ConditionalNodeGenerator:
             distance_pairs = []
             distance_targets = np.array([], dtype=np.int64)
 
+        (
+            use_dynamic_molecular_features,
+            dynamic_atom_valences,
+            dynamic_atom_weights,
+        ) = self._infer_dynamic_molecular_label_features()
         
         # Initialize the model with updated flags for edge supervision
         self.model = IterativeDenoisingAutoencoderTransformerModel(
@@ -3309,7 +3505,11 @@ class ConditionalNodeGenerator:
             project_existence_during_sampling=self.project_existence_during_sampling,
             project_degree_during_sampling=self.project_degree_during_sampling,
             project_label_during_sampling=self.project_label_during_sampling,
-	            use_matched_row_loss=self.use_matched_row_loss
+            use_matched_row_loss=self.use_matched_row_loss,
+            use_dynamic_molecular_features=use_dynamic_molecular_features,
+            dynamic_molecular_feature_scale=self.dynamic_molecular_feature_scale,
+            dynamic_atom_valences=dynamic_atom_valences,
+            dynamic_atom_weights=dynamic_atom_weights
 
 	        )
         self.model.use_guidance = self.use_guidance
