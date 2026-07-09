@@ -449,6 +449,7 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
                  use_edge_label_supervision: bool = False,
                 max_edge_label: Optional[int] = None,
                 lambda_edge_label_importance: float = 1.0,
+                edge_label_class_weight: Optional[Union[torch.Tensor, Sequence[float]]] = None,
 
                 use_distance_supervision: bool = True,
                 max_distance_class: int = 3,          # 0..3 == 1,2,3,4+
@@ -707,6 +708,15 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
         self.use_edge_label_supervision = use_edge_label_supervision
         self.max_edge_label = max_edge_label
         self.lambda_edge_label_importance = lambda_edge_label_importance
+        if edge_label_class_weight is None:
+            if max_edge_label is None:
+                edge_label_class_weight = torch.ones(1, dtype=torch.float32)
+            else:
+                edge_label_class_weight = torch.ones(max_edge_label + 1, dtype=torch.float32)
+        self.register_buffer(
+            "edge_label_class_weight",
+            torch.as_tensor(edge_label_class_weight, dtype=torch.float32),
+        )
 
         self.use_distance_supervision = use_distance_supervision
         self.max_distance_class = max_distance_class
@@ -1743,6 +1753,7 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
                 loss_edge_lab_elem = F.cross_entropy(
                     logits_edge_lab,
                     edge_cls_lbl[valid2].long(),
+                    weight=self.edge_label_class_weight,
                     reduction='none',
                 )
                 loss_edge_lab = (loss_edge_lab_elem * w_pair2).sum() / (w_pair2.sum() + 1e-8)
@@ -1966,6 +1977,7 @@ class IterativeDenoisingAutoencoderTransformerModel(pl.LightningModule):
                 loss_edge_lab_elem = F.cross_entropy(
                     logits_edge_lab,
                     edge_cls_lbl[valid2].long(),
+                    weight=self.edge_label_class_weight,
                     reduction='none',
                 )
                 loss_edge_lab = (loss_edge_lab_elem * w_pair2).sum() / (w_pair2.sum() + 1e-8)
@@ -2730,6 +2742,8 @@ class ConditionalNodeGenerator:
                 label_class_weight_cap: float = 5.0,
                 label_feature_index: int = 2,
                 lambda_edge_label_importance: float = 1.0,
+                balance_edge_label_loss: bool = False,
+                edge_label_class_weight_cap: float = 5.0,
                 lambda_distance_importance: float = 1.0,
                 max_distance_class=3,
                 use_distance_supervision: bool = False,
@@ -2820,6 +2834,8 @@ class ConditionalNodeGenerator:
         self.label_class_weight_cap = float(label_class_weight_cap)
         self.L_max = None
         self.lambda_edge_label_importance = lambda_edge_label_importance
+        self.balance_edge_label_loss = bool(balance_edge_label_loss)
+        self.edge_label_class_weight_cap = float(edge_label_class_weight_cap)
         self.lambda_distance_importance = lambda_distance_importance
         self.max_distance_class=max_distance_class 
 
@@ -3413,11 +3429,36 @@ class ConditionalNodeGenerator:
                 print("Label class weights:", label_class_weight.tolist())
         E_max_label = None
         use_edge_label_supervision = False
+        edge_label_class_weight = np.ones(1, dtype=np.float32)
         if edge_label_targets is not None and len(edge_label_targets) > 0:
             uniq_edge_lbls = np.unique(edge_label_targets)
             if len(uniq_edge_lbls) > 1 and self.lambda_edge_label_importance > 0:
                 E_max_label = int(uniq_edge_lbls.max())
                 use_edge_label_supervision = True
+                edge_label_class_weight = np.ones(E_max_label + 1, dtype=np.float32)
+                if self.balance_edge_label_loss:
+                    edge_label_classes = np.clip(
+                        np.asarray(edge_label_targets, dtype=np.int64),
+                        0,
+                        E_max_label,
+                    )
+                    counts = np.bincount(
+                        edge_label_classes,
+                        minlength=E_max_label + 1,
+                    ).astype(np.float32)
+                    present = counts > 0
+                    if present.any():
+                        weights = counts[present].sum() / (present.sum() * counts[present])
+                        weights = weights / max(float(weights.mean()), 1e-8)
+                        weights = np.clip(
+                            weights,
+                            1.0 / self.edge_label_class_weight_cap,
+                            self.edge_label_class_weight_cap,
+                        )
+                        edge_label_class_weight[present] = weights.astype(np.float32)
+                    if self.verbose:
+                        print("Edge label class counts:", counts.astype(int).tolist())
+                        print("Edge label class weights:", edge_label_class_weight.tolist())
             elif len(uniq_edge_lbls) > 1 and self.verbose:
                 print("Edge-label loss weight is 0 — disabling edge-label head.")
             elif self.verbose:
@@ -3482,6 +3523,7 @@ class ConditionalNodeGenerator:
             use_edge_label_supervision=use_edge_label_supervision,
             max_edge_label=E_max_label,
             lambda_edge_label_importance=getattr(self, "lambda_edge_label_importance", 1.0),
+            edge_label_class_weight=edge_label_class_weight,
             use_distance_supervision=use_distance_supervision,
             lambda_distance_importance=self.lambda_distance_importance,
             max_distance_class=self.max_distance_class,
