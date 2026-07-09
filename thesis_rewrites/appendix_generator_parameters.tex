@@ -1,0 +1,450 @@
+\chapter{Generator Parameter Details}
+\label{app:generator-parameters}
+
+This appendix records the main configurable quantities used by the
+Graph-Conditioned Denoising Generator. The purpose is
+reproducibility rather than method definition: Chapter~\ref{ch:generator}
+describes the modelling choices, while the tables below identify the
+parameters that instantiate those choices in experiments. Long code-level
+names are avoided in the tables so that the appendix remains readable; the
+corresponding experiment configuration files record the exact implementation
+identifiers.
+
+\section{Representation and Conditioning}
+
+\begin{table}[p]
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{0.34\textwidth}X@{}}
+\toprule
+Parameter / symbol & Role \\
+\midrule
+Maximum number of node rows, \(N_{\max}\) & Size of the padded node feature matrix. Graphs with fewer than \(N_{\max}\) nodes are padded with non-existent node rows. \\
+Node-label vocabulary size, \(K_V=|\mathcal{T}_V|\) & Number of categorical node-label classes learned from the training set. \\
+Node structural feature dimension, \(d_r\) & Dimension of the node-level structural representation \(r_i\). \\
+Node feature dimension, \(d_{\mathrm{feat}}=2+K_V+d_r\) & Width of each row \(x_i=[m_i,g_i,q_i,r_i]\) in the node feature matrix. \\
+Node feature scaling & Scales node-feature coordinates before denoising. The scaler is fitted on real node rows from the training graphs, after optional node-feature dimensionality reduction, and is then kept fixed. Padding rows are excluded from fitting, and the existence component is kept as a binary mask. \\
+Graph-level condition, \(C\in\mathbb{R}^{d_C}\) & Continuous graph-level vector used to condition generation. In the thesis experiments this is usually produced by a graph-kernel encoder and may be reduced in dimension. \\
+Condition scaling & Standardises graph-level conditions before they are supplied to the denoiser. The scaler is fitted on the training conditions and then kept fixed for validation, held-out conditions, and generated graphs. \\
+Condition dimensionality reduction & Optional fixed transformation applied to high-dimensional graph conditions. In the reported experiments this is typically truncated \gls{svd}: the projection is fitted once on the training conditions and then reused unchanged. \\
+Number of retained condition components & Output dimension of the reduced condition vector, for example 128. \\
+Prefix dimensions kept unreduced & Number of leading condition dimensions kept outside the dimensionality-reduction transform when some condition entries have direct semantic meaning. \\
+\bottomrule
+\end{tabularx}
+\caption{Representation and conditioning parameters.}
+\label{tab:generator-representation-parameters}
+\end{table}
+
+\section{Denoising and Supervised Objectives}
+
+\begin{table}[p]
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{0.34\textwidth}X@{}}
+\toprule
+Parameter / symbol & Role \\
+\midrule
+Number of reverse steps, \(T\) & Number of denoising steps used during sampling. \\
+Minimum noise level, \(\sigma_{\min}\) & Smallest noise level in the denoising schedule. Controls how close the final denoising steps are to the clean node feature matrix. \\
+Maximum noise level, \(\sigma_{\max}\) & Largest noise level in the denoising schedule. Controls how difficult the highest-noise denoising task is. \\
+Feature-wise noise scale, \(\Gamma(t)\) & Per-feature scale applied to Gaussian noise in \(X_t=X_0+\Gamma(t)\odot\varepsilon\). \\
+Continuous-feature mask, \(B_{\mathrm{cont}}\) & Masks the feature dimensions trained by the continuous denoising loss, excluding categorical feature blocks handled by classification losses. \\
+Discrete corruption mode & Determines how categorical feature blocks are corrupted. The variants used in the experiments include no discrete corruption, random replacement, and absorbing-mask corruption. \\
+Projection noise threshold & Noise level below which categorical feature blocks may be projected to class predictions during sampling. \\
+Noise-prediction loss weight, \(\lambda_{\varepsilon}\) & Weight on the continuous denoising loss \(\mathcal{L}_{\varepsilon}\). \\
+Clean-matrix loss weight, \(\lambda_{x_0}\) & Optional weight on direct reconstruction of the clean node feature matrix \(\hat{X}_0\). \\
+Condition-to-\(X_0\) prior weight, \(\lambda_{\mathrm{cond}\to x_0}\) & Optional weight for a direct prediction from the graph-level condition to the clean node feature matrix. \\
+Node-existence loss weight, \(\lambda_{\mathrm{exist}}\) & Weight on the binary classification task for whether a node row corresponds to a real node. \\
+Degree loss weight, \(\lambda_{\mathrm{deg}}\) & Weight on the categorical degree-class prediction task. \\
+Node-label loss weight, \(\lambda_{\tau_V}\) & Weight on the categorical node-label prediction task. \\
+Consistency loss weight, \(\lambda_{\mathrm{cons}}\) & Weight on the penalty discouraging non-existent padded rows from carrying non-zero continuous information. \\
+\bottomrule
+\end{tabularx}
+\caption{Denoising and supervised node-level objective parameters.}
+\label{tab:generator-denoising-parameters}
+\end{table}
+
+\section{Pairwise Prediction and Graph Decoding}
+
+\begin{table}[p]
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{0.34\textwidth}X@{}}
+\toprule
+Parameter / symbol & Role \\
+\midrule
+Edge-supervision flag & Enables pairwise supervision for edge existence using sampled or full node pairs. \\
+Supervised edge fraction & Fraction of possible node pairs used to train the edge-existence classifier when subsampling is used. \\
+Balanced edge loss & Reweights positive and negative edge examples to reduce domination by non-edges. \\
+Edge-existence loss weight, \(\lambda_{\mathrm{edge}}\) & Weight on binary edge-existence supervision. \\
+Clean-edge loss weight, \(\lambda_{\mathrm{clean\_edge}}\) & Optional extra edge-existence supervision evaluated on clean node representations. \\
+Edge-label loss weight, \(\lambda_{\tau_E}\) & Weight on categorical edge-label prediction when edge labels are present. \\
+Distance loss weight, \(\lambda_{\mathrm{dist}}\) & Weight on optional binned graph-distance prediction between node pairs. \\
+Distance-edge blend & Optional blending of distance-derived edge evidence into edge generation. \\
+Edge probability matrix, \(P^{\mathrm{edge}}\) & Matrix of predicted edge probabilities passed to the graph decoder. \\
+Degree slack penalty, \(\lambda_{\mathrm{slack}}\) & Penalty on violations of predicted target degrees in the constrained adjacency decoder. \\
+Connectivity constraint & Adds flow constraints requiring the decoded graph to be connected when the dataset or experiment requires it. \\
+Edge generation mode & Selects the source of edge probabilities, such as direct pairwise prediction, final edge state, or an external edge provider. \\
+\bottomrule
+\end{tabularx}
+\caption{Pairwise prediction and constrained decoding parameters.}
+\label{tab:generator-decoding-parameters}
+\end{table}
+
+\section{Condition-Adaptive Structural Controls}
+
+\begin{table}[p]
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{0.34\textwidth}X@{}}
+\toprule
+Parameter / symbol & Role \\
+\midrule
+Node-count control & Predicts the number of existing node rows from the graph-level condition and projects the generated matrix to that count. \\
+Degree-histogram control & Predicts the number of nodes in each degree class from the graph-level condition and uses it as a final projection constraint. \\
+Node-label histogram control & Predicts the number of nodes in each node-label class from the graph-level condition and uses it as a final projection constraint. \\
+Fixed node count or fixed histograms & If the training set has a fixed count or fixed histogram, the corresponding projection can use that fixed value rather than a learned predictor. \\
+\bottomrule
+\end{tabularx}
+\caption{Condition-adaptive structural control parameters.}
+\label{tab:generator-condition-control-parameters}
+\end{table}
+
+\section{Joint Edge State}
+
+\begin{table}[p]
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{0.34\textwidth}X@{}}
+\toprule
+Parameter / symbol & Role \\
+\midrule
+Joint edge-state variant & Enables a running provisional adjacency state \(A_t^{\mathrm{state}}\) that is injected into node-latent updates during denoising. \\
+Message-passing depth & Number of message-passing updates that use \(A_t^{\mathrm{state}}\) to refine node latents. \\
+Edge deletion probability & Training-time probability scale for deleting true edges from \(A_0\) to form the corrupted edge state. \\
+Edge addition probability & Training-time probability scale for adding false edges to the corrupted edge state. \\
+Edge-state momentum, \(\mu\) & Weight placed on the previous edge state in the sampling update \(A_{t-1}^{\mathrm{state}}=\mu A_t^{\mathrm{state}}+(1-\mu)P_\theta^{\mathrm{edge}}(Z_t)\). \\
+Edge-state threshold & Optional threshold used at low noise levels to sharpen the provisional edge state. \\
+\bottomrule
+\end{tabularx}
+\caption{Joint edge-state parameters.}
+\label{tab:generator-joint-edge-parameters}
+\end{table}
+
+\section{Molecular Extensions}
+
+\begin{table}[p]
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{0.34\textwidth}X@{}}
+\toprule
+Parameter / symbol & Role \\
+\midrule
+Valency projection & Applies a chemistry-aware post-processing rule after adjacency decoding to avoid atom valency violations. Reported separately from the dataset-agnostic generator. \\
+Bond downgrading & Allows high-order bonds to be downgraded to lower-order bonds before removal when enforcing valency budgets. \\
+Dynamic molecular features & Injects the deterministic molecular state matrix \(M_t^{\mathrm{mol}}\) into node tokens during denoising. \\
+Molecular feature scale, \(\lambda_{\mathrm{mol}}\) & Controls the strength of the molecular-state injection \(R^{(0)}\leftarrow R^{(0)}+\lambda_{\mathrm{mol}}W_{\mathrm{mol}}M_t^{\mathrm{mol}}\). \\
+Molecular state matrix, \(M_t^{\mathrm{mol}}\in\mathbb{R}^{N_{\max}\times 5}\) & Deterministic features computed from current atom-label probabilities and edge state: current valency, allowed valency, valence deficit, atom weight, and graph-level molecular-weight summary. \\
+\bottomrule
+\end{tabularx}
+\caption{Chemistry-aware parameters. These are domain-specific additions, not part of the generic graph generator.}
+\label{tab:generator-molecular-parameters}
+\end{table}
+
+\section{Synthetic Cycle--Leg Experiment Settings}
+
+The synthetic constraint-controlled experiments in
+Section~\ref{sec:generator:experiments} use the same balanced graph family for
+the proposed generator, the conditional DiGress-style comparison, and the direct
+\gls{vgae} baseline. All three methods use the same \(18{,}000\)-graph
+synthetic training split and are evaluated with the same requested cycle-size
+categories and sample counts.
+
+\begin{table}[p]
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{0.30\textwidth}X@{}}
+\toprule
+Setting & Value used in the synthetic experiments \\
+\midrule
+Graph family & Labelled cycle--leg graphs. Each graph contains one simple cycle and one attached path-like leg. \\
+Requested cycle sizes & \(3,4,5,6,7,8\). These form the conditional categories \(\mathrm{cycle}_3,\ldots,\mathrm{cycle}_8\). \\
+Leg sizes & Four or five additional path nodes. The train and test splits are balanced over cycle size and leg size. \\
+Node-label alphabet & Seven node labels: four labels used for cycle nodes and three labels used for leg nodes. The strict label metric checks whether labels are placed on the correct structural role. \\
+Training split & \(3000\) graphs per requested cycle size, giving \(18{,}000\) training graphs. Equivalently, there are \(1500\) training graphs for each cycle-size/leg-size pair. \\
+Evaluation split & \(100\) held-out graphs per requested cycle size, giving \(600\) evaluation conditions. Equivalently, there are \(50\) held-out graphs for each cycle-size/leg-size pair. \\
+Conditional evaluation set & For the two graph-conditioned methods, the \(600\) evaluation inputs are graph-level encodings of held-out reference graphs. These held-out condition vectors are not used as training examples. \\
+Graph-level encoding & \gls{nsppk} with \(14\) hash bits, giving \(2^{14}=16{,}384\) condition dimensions. The reported setting uses radius \(1\), distance \(4\), connector \(1\), dense output, and edge features. \\
+Evaluation protocol & The graph-conditioned methods generate one graph per held-out condition. The \gls{vgae} baseline generates the same number of samples per requested cycle class. Metrics are reported per requested cycle size and overall. \\
+\bottomrule
+\end{tabularx}
+\caption{Dataset and condition settings for the synthetic cycle--leg experiments.}
+\label{tab:synthetic-cycle-leg-settings}
+\end{table}
+
+\begin{table}[p]
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{0.38\textwidth}X@{}}
+\toprule
+Hyperparameter & Value used for the proposed generator \\
+\midrule
+Training graphs & \(18{,}000\) synthetic cycle--leg graphs. \\
+Graph-level condition & \gls{nsppk}-14 vector, \(16{,}384\) dimensions. \\
+Condition dimensionality reduction & Disabled. \\
+Node-level representation & Quotient node vectorizer. \\
+Node-feature dimensionality reduction & Enabled; \gls{svd} tail reduction to \(128\) dimensions with automatic discrete-prefix preservation. \\
+Node-latent dimension & \(128\). \\
+Maximum training epochs & \(5000\). \\
+Batch size & \(32\). \\
+Reverse denoising steps at evaluation & \(100\). \\
+Direct clean-matrix reconstruction weight & \(\lambda_{x_0}=10\). \\
+Condition-to-\(\hat X_0\) prior weight & \(0\). \\
+Condition-to-\(\hat X_0\) sampling blend & \(0\). \\
+Node-count control & Enabled. \\
+Degree-histogram control & Enabled. \\
+Node-label histogram control & Enabled. \\
+Edge supervision & Enabled. \\
+Supervised edge-pair fraction & \(0.30\). \\
+Edge-generation mode & Direct pairwise edge prediction. \\
+Joint edge state & Enabled. \\
+Joint edge message-passing steps & \(3\). \\
+Joint edge deletion probability & \(0.10\). \\
+Joint edge addition probability & \(0.02\). \\
+Joint edge momentum & \(0.70\). \\
+Joint edge threshold & \(0.40\). \\
+\bottomrule
+\end{tabularx}
+\caption{Hyperparameters for the graph-conditioned denoising generator in the synthetic cycle--leg experiment.}
+\label{tab:synthetic-cycle-leg-proposed-hyperparameters}
+\end{table}
+
+\begin{table}[p]
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{0.38\textwidth}X@{}}
+\toprule
+Hyperparameter & Value used for the Conditional DiGress-style model \\
+\midrule
+Exported graph set & \(18{,}000\) synthetic cycle--leg graphs. \\
+DiGress internal split & \(12{,}600\) train, \(1800\) validation, \(3600\) test. \\
+Node and edge classes & Seven node classes and two edge classes, matching the exported synthetic graph representation. \\
+Graph-level condition & Standardized \gls{nsppk}-14 vector, \(16{,}384\) dimensions. \\
+Condition standardisation & Mean and standard deviation fitted on exported training graphs. \\
+Global input channel & \(16{,}385\) dimensions: the graph-level condition plus the DiGress time/noise coordinate. \\
+Model family & Discrete DiGress graph transformer. \\
+Forward transition & Marginal transition model, using empirical node- and edge-type marginals. \\
+Noise schedule & Cosine discrete noise schedule. \\
+Diffusion steps & \(500\). \\
+Transformer layers & \(5\). \\
+Attention heads & \(8\). \\
+Hidden dimensions & \(d_X=256\), \(d_E=64\), \(d_y=64\). \\
+Feed-forward dimensions & \(256\) for node features, \(128\) for edge features, and \(128\) for global features. \\
+Input MLP hidden dimensions & \(256\) for node features, \(128\) for edge features, and \(128\) for global features. \\
+Training loss weights & \(\lambda_{\mathrm{train}}=[5,0]\), following the DiGress discrete-model default. \\
+Training epochs & \(1000\). \\
+Batch size & \(256\), overriding the DiGress default of \(512\). \\
+Optimizer & AdamW with learning rate \(2\times 10^{-4}\), weight decay \(10^{-12}\), and AMSGrad enabled. \\
+Gradient clipping & Disabled. \\
+Validation frequency & Every \(5\) epochs. \\
+Checkpointing & Model saving enabled; the last checkpoint is saved every epoch and the best five validation checkpoints are retained. \\
+Training-time sampling & Disabled by setting the number of generated validation samples to zero. \\
+DiGress extra features & Disabled in the synthetic experiment, overriding the DiGress discrete-model default of using all extra features. \\
+Decode set & \(600\) held-out graph-level conditions, balanced as \(100\) per requested cycle size. \\
+Generated samples for evaluation & \(600\), one per held-out condition. \\
+\bottomrule
+\end{tabularx}
+\caption{Hyperparameters for the Conditional DiGress-style synthetic cycle--leg comparison.}
+\label{tab:synthetic-cycle-leg-digress-hyperparameters}
+\end{table}
+
+\begin{table}[p]
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{0.38\textwidth}X@{}}
+\toprule
+Hyperparameter & Value used for the direct class-conditional \gls{vgae} baseline \\
+\midrule
+Training graphs & Same \(18{,}000\)-graph synthetic split. \\
+Baseline family & Class-conditional variational graph autoencoder adapted from \gls{vgae}/GraphVAE-style graph generators. \\
+Conditioning variable & Requested cycle class only, not the full held-out graph-level condition vector. \\
+Encoder hidden dimensions & \(64\), \(32\). \\
+Encoder layers & \(3\). \\
+Residual connections & Enabled. \\
+Learning rate & \(10^{-3}\). \\
+Maximum training epochs & \(160\). \\
+Dropout & \(0.10\). \\
+Validation split & \(0.15\), holdout validation. \\
+Early stopping patience & \(20\) epochs. \\
+Early stopping minimum delta & \(10^{-4}\). \\
+Checkpoint selection & Restore best validation checkpoint. \\
+KL weight schedule & \(\beta:0\rightarrow0.25\). \\
+KL warmup & \(80\) epochs. \\
+Edge threshold & \(0.50\). \\
+Edge-threshold calibration & Enabled. \\
+Bernoulli edge sampling & Disabled; sampled latents are decoded using deterministic thresholded edge probabilities. \\
+Dynamic density matching & Enabled. \\
+Density-match blend & \(1.0\). \\
+Connectedness enforcement & Enabled. \\
+Generated samples for evaluation & \(100\) direct latent samples per requested cycle class. \\
+\bottomrule
+\end{tabularx}
+\caption{Hyperparameters for the direct class-conditional \gls{vgae} baseline in the synthetic cycle--leg experiment.}
+\label{tab:synthetic-cycle-leg-vgae-hyperparameters}
+\end{table}
+
+\clearpage
+\section{QM9 Molecular Generation Experiment Settings}
+\label{app:qm9-molecular-settings}
+
+The molecular experiments compare the proposed graph-conditioned denoising
+generator with a conditional DiGress-style molecular generator under the same
+graph-level conditioning protocol. Both models use the same condition
+construction. First, an \gls{nsppk} feature vector is computed for each
+molecular graph. Because this feature vector is high-dimensional, a truncated
+\gls{svd} projection is fitted on the training graphs and used to map the
+feature vector to \(128\) dimensions. The fitted projection, together with the
+training-set mean and standard deviation used for standardisation, is then kept
+fixed and reused unchanged for held-out condition graphs, generated graphs, and
+both generators. In this sense, ``frozen'' means fitted once on the training
+set and not refitted during evaluation. The condition vector is therefore a
+continuous graph-level representation rather than a molecule class label. The
+workflow also computes auxiliary molecular diagnostics for checking validity,
+uniqueness, novelty, and copying, but the main chapter reports the RDKit
+visualisations and scalar-property \gls{mmd} comparisons.
+
+\begin{table}[p]
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{0.34\textwidth}X@{}}
+\toprule
+Setting & Value used in the QM9 molecular comparison \\
+\midrule
+Molecular dataset & QM9 molecules loaded from the local SMILES table. \\
+Hydrogen handling & Explicit hydrogens removed before graph construction. \\
+Training source size & \(50{,}000\) QM9 molecules loaded for the main train/test construction. \\
+Initial split & \(49{,}400\) training graphs and \(600\) held-out test graphs, using random seed \(42\). \\
+Novelty/copy reference & The full canonical-SMILES set of the \(49{,}400\) training graphs. \\
+Held-out condition source & Additional QM9 molecules loaded from the same source table and filtered to remove molecules already present in the training SMILES set. \\
+Held-out molecular conditions & \(10{,}000\) unseen condition graphs sampled with random seed \(2026\). \\
+Train reference sample & \(10{,}000\) training molecules sampled with random seed \(2026\). \\
+Shared qualitative condition set & A fixed set of \(100\) held-out conditions is exported and reused by both generators for matched visual comparison. \\
+Graph-level condition map & \gls{nsppk} with radius \(1\), distance \(4\), connector \(1\), \(14\) hash bits, and edge labels included as features. \\
+Condition dimensionality & \(16{,}384\)-dimensional \gls{nsppk} features compressed to \(128\) dimensions using the truncated \gls{svd} projection fitted on the training graphs. \\
+Condition normalisation & The projected condition vectors are standardised using mean and standard deviation fitted on the training graphs; these statistics are then reused unchanged for held-out and generated graphs. \\
+Molecular labels & Atom labels are learned from the dataset; the QM9 runs use carbon, fluorine, nitrogen, and oxygen atom types. \\
+Bond labels & Single, double, triple, and aromatic bonds are represented when present; DiGress also includes an explicit no-edge class. \\
+Generation protocol & One molecule is generated per held-out condition. \\
+Auxiliary molecular diagnostics & RDKit validity, connectedness, canonical-SMILES uniqueness, novelty/copy rate against the full training set, and valid--unique--novel acceptance rate are computed for checking, but are not all used as headline reported metrics in Chapter~\ref{ch:generator}. \\
+Graph statistics & Atom count, bond count, mean bond degree, graph density, atom-type counts, and bond-type counts. \\
+Molecular descriptors & Molecular weight, logP, QED, and TPSA for RDKit-valid molecules. \\
+Distributional comparison & Scalar RBF-\gls{mmd} for molecular weight, logP, QED, TPSA, density, atom count, bond count, and mean bond degree. \\
+Condition preservation & Re-encode each generated molecule using the same fitted \gls{nsppk}/\gls{svd}/standardisation pipeline and compare \(C\) with \(\hat C\) using same-dimension correlations, pairwise cosine similarity, and pooled vector scatter plots. \\
+\bottomrule
+\end{tabularx}
+\caption{Shared data, conditioning, and evaluation settings for the QM9 molecular generation comparison.}
+\label{tab:qm9-shared-molecular-settings}
+\end{table}
+
+\begin{table}[p]
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{0.34\textwidth}X@{}}
+\toprule
+Hyperparameter & Value used for the proposed generator on QM9 \\
+\midrule
+Model family & Graph-conditioned denoising generator. \\
+Training graphs & \(49{,}400\) molecular graphs. \\
+Node-level representation & Padded node feature matrix with existence, degree, and one-hot atom-label blocks followed by node-level \gls{nsppk} features. \\
+Node feature reduction & \gls{svd} reduction enabled for the feature tail, keeping the dataset-adaptive discrete prefix and \(128\) reduced feature dimensions. \\
+Graph-level condition & Standardised \gls{nsppk}-14/\gls{svd}-128 graph encoding, with the \gls{svd} projection and standardisation fitted on the training graphs and then kept fixed. \\
+Additional condition reduction & Disabled; the fixed 128-dimensional condition is used directly. \\
+Latent dimension & \(128\). \\
+Transformer layers & \(4\). \\
+Attention heads & \(8\). \\
+Dropout & \(0.05\). \\
+Learning rate & \(3\times10^{-4}\). \\
+Maximum epochs & \(5000\). \\
+Training batch size & \(32\). \\
+Early stopping patience & \(100\) epochs. \\
+Checkpoint selection & Best validation checkpoint. \\
+Denoising steps & \(50\) in the generator configuration; \(100\) steps used for the reported held-out QM9 decoding run. \\
+Noise range & \(\sigma_{\min}=0.01\), \(\sigma_{\max}=0.1\), and final sampling noise \(0\). \\
+Continuous reconstruction weight & \(\lambda_{\mathrm{recon}}=0\). \\
+Direct clean-matrix weight & \(\lambda_{x_0}=10\). \\
+Condition-to-\(X_0\) prior & Disabled with \(\lambda_{\mathrm{cond}\rightarrow x_0}=0\) and sampling blend \(0\). \\
+Node-existence loss weight & \(\lambda_{\mathrm{exist}}=5\). \\
+Degree loss weight & \(\lambda_{\mathrm{deg}}=60\), with class balancing enabled and class-weight cap \(2\). \\
+Node-label loss weight & \(\lambda_{\mathrm{label}}=140\), with class balancing enabled and class-weight cap \(2\). \\
+Edge-existence loss weight & \(\lambda_{\mathrm{edge}}=5\), with edge/non-edge balancing enabled. \\
+Clean-edge auxiliary loss & Disabled, \(\lambda_{\mathrm{clean\ edge}}=0\). \\
+Edge-label loss weight & \(\lambda_{\mathrm{edge\ label}}=140\). \\
+Distance supervision & Enabled with maximum distance class \(3\) and loss weight \(\lambda_{\mathrm{dist}}=1\). \\
+Consistency loss & \(\lambda_{\mathrm{cons}}=0.3\). \\
+Discrete channel handling & Degree and atom-label channels are predicted by categorical heads; continuous denoising of these channels is disabled. \\
+Discrete corruption mode & Absorbing-mask corruption for categorical channels. \\
+Noise scaling for discrete features & Degree and label noise factors set to \(10\). \\
+Projection during sampling & Existence, degree, and atom-label projections are enabled during sampling; final categorical projection is used at \(\sigma=0\). \\
+Row handling & Random row permutation and matched-row loss enabled. \\
+Conditioned node-count control & Enabled. \\
+Conditioned degree-histogram control & Enabled. \\
+Conditioned label-histogram control & Enabled. \\
+Joint edge state & Enabled during denoising. \\
+Joint edge corruption & Delete probability \(0.10\), add probability \(0.02\). \\
+Joint edge update & Three message-passing steps, momentum \(0.7\), threshold \(0.40\). \\
+Edge supervision & Enabled for training the edge provider. \\
+Dynamic molecular state features & Enabled with scale \(1.0\). \\
+Valency projection & Enabled after decoding. \\
+Bond downgrade rule & Enabled, allowing over-valent higher-order bonds to be downgraded before removal. \\
+Held-out evaluation samples & \(10{,}000\) generated molecules, one per unseen graph-level condition. \\
+Shared qualitative samples & \(100\) generated molecules from the fixed shared condition set. \\
+\bottomrule
+\end{tabularx}
+\caption{Hyperparameters for the proposed graph-conditioned denoising generator in the QM9 molecular experiment.}
+\label{tab:qm9-proposed-generator-hyperparameters}
+\end{table}
+
+\begin{table}[p]
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{0.34\textwidth}X@{}}
+\toprule
+Hyperparameter & Value used for the conditional DiGress-style QM9 model \\
+\midrule
+Model family & Conditional DiGress discrete graph transformer. \\
+Exported graph set & \(49{,}400\) molecular graphs with graph-level conditions computed using the fixed \gls{nsppk}/\gls{svd}/standardisation pipeline fitted on the training graphs. \\
+DiGress internal split & \(34{,}580\) train, \(4940\) validation, and \(9880\) test graphs. \\
+Split seed & \(1234\) for the DiGress internal train/validation/test split. \\
+Node classes & Four atom classes: carbon, fluorine, nitrogen, and oxygen. \\
+Edge classes & Five edge classes: no edge, single, double, triple, and aromatic. \\
+Graph-level condition & Same standardised \gls{nsppk}-14/\gls{svd}-128 condition vectors used by the proposed generator, computed with the same projection fitted on the training graphs. \\
+Condition injection & The 128-dimensional condition vector is appended to the DiGress global feature channel \(y\). \\
+Extra features & DiGress molecular and structural extra features enabled. \\
+Observed input dimensions & With extra features enabled, the model receives \(12\) node channels, \(5\) edge channels, and \(141\) global channels. \\
+Forward transition & Marginal categorical transition using empirical node- and edge-type marginals. \\
+Noise schedule & Cosine discrete noise schedule. \\
+Diffusion steps & \(500\). \\
+Transformer layers & \(9\), overriding the DiGress default of \(5\). \\
+Attention heads & \(8\). \\
+Hidden dimensions & \(d_X=256\), \(d_E=64\), \(d_y=64\). \\
+Feed-forward dimensions & \(256\) for node features, \(128\) for edge features, and \(128\) for global features. \\
+Input MLP hidden dimensions & \(256\) for node features, \(128\) for edge features, and \(128\) for global features. \\
+Training loss weights & \(\lambda_{\mathrm{train}}=[5,0]\), following the DiGress discrete-model default. \\
+Training epochs & \(1000\). \\
+Training batch size & \(1024\), overriding the DiGress default of \(512\). \\
+Optimizer & AdamW with learning rate \(2\times 10^{-4}\), weight decay \(10^{-12}\), and AMSGrad enabled. \\
+Gradient clipping & Disabled. \\
+EMA & Disabled. \\
+Validation frequency & Every \(5\) epochs. \\
+Checkpointing & Model saving enabled; the last checkpoint is saved every epoch and the best five validation checkpoints are retained. \\
+Training-time sampling & Disabled for the reported training run by setting validation and final sample counts to zero. \\
+Sampling script & Conditional QM9 sampling uses the trained checkpoint and the held-out condition file. \\
+Sampling batch size & \(128\) for the \(10{,}000\)-condition evaluation; \(100\) for the shared qualitative condition set. \\
+Held-out evaluation samples & \(10{,}000\) generated molecules, one per unseen graph-level condition. \\
+Shared qualitative samples & \(100\) generated molecules from the fixed shared condition set. \\
+Runtime thread control & CPU thread counts fixed to one for BLAS/OpenMP libraries during the macOS runs. \\
+\bottomrule
+\end{tabularx}
+\caption{Hyperparameters for the conditional DiGress-style model in the QM9 molecular comparison.}
+\label{tab:qm9-digress-hyperparameters}
+\end{table}
