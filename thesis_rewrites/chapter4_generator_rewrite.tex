@@ -837,14 +837,20 @@ statistics.
 The generated node feature matrix is converted into a discrete graph by a
 separate decoder. This step is a constrained decoding problem: the neural model
 produces soft predictions, and the decoder projects those predictions onto the
-set of graphs satisfying the required structural constraints. This idea follows
-the broader structured-prediction and combinatorial-optimisation view that a
-learning model can provide scores for a discrete decision problem, while an
-optimisation procedure enforces feasibility
-\citep{donti2017task,bengio2021combinatorial}. It is also related in spirit to
-constraint-aware molecular and graph generation, where validity is not left
-entirely to an unconstrained output layer
-\citep{liu2018constrained,you2018gcpn,samanta2020nevae}.
+set of graphs satisfying the required structural constraints. The relevant
+classical problem is graph realisation with prescribed degrees: a predicted
+degree sequence may or may not be graphical, and this question is characterised
+by the Erdős--Gallai theorem and the Havel--Hakimi construction
+\citep{havel1955remark,erdos1960graphs,hakimi1962realizability}. The decoder
+uses a weighted relaxation of this idea: the neural network supplies scores for
+candidate edges, while the optimisation step selects a high-scoring edge set
+whose degrees are close to the predicted degree targets. This places the
+decoder near weighted \(b\)-matching and \(f\)-factor formulations, where one
+selects a subgraph subject to vertex-degree requirements
+\citep{tutte1954short,edmonds1965paths,gabow2016data}. Connectivity, when
+required, is imposed by additional flow constraints; the maximum-spanning-tree
+initialisation is used only as a warm start for the constrained optimisation
+\citep{kruskal1956shortest,ahuja1993network}.
 
 In this generator, the decoder first selects existing nodes using the predicted
 existence component. It then extracts target degree classes and node-label
@@ -890,67 +896,94 @@ valency budgets, optionally downgrading higher-order bonds to lower-order bonds
 when necessary. This post-processing rule is chemistry-aware and is therefore
 reported separately from the dataset-agnostic generator.
 
-\section{Relation to Direct Graph Diffusion}
+\section{Relation to Graph Diffusion and Baseline Generators}
 \label{sec:generator:relation}
 
-The proposed generator differs from direct graph diffusion models in where the
-stochastic process is placed. Direct discrete graph diffusion models typically
-diffuse node and edge classes directly and learn a reverse process over the
-complete graph state. In contrast, this generator denoises a continuous
-node-feature representation and uses pairwise heads plus a constrained decoder to
-recover the final graph. The adjacency matrix is therefore not the primary
-diffused object. It is predicted from node latents and then selected under
-constraints.
+The main theoretical distinction between graph generators is not only the
+neural architecture, but also the object on which the generative process is
+defined. A graph generator must decide the number of nodes, node attributes,
+edge incidence, and edge attributes while remaining insensitive to arbitrary
+node orderings. It must also produce sparse and valid graph structure. Different
+model families resolve this coupling in different ways.
 
-This places the method between several existing families of graph generators.
-Variational, adversarial, and flow-based graph generators model discrete graphs
-through latent-variable objectives, implicit adversarial training, or invertible
-transformations \citep{kusner2017gvae,simonovsky2018graphvae,de2018molgan,
-madhawa2019graphnvp,zang2020moflow,lippe2022graphcnf}. Continuous graph
-diffusion methods instead add Gaussian noise to relaxed node and adjacency
-representations \citep{niu2020permutation,jo2022score}. DiGress avoids this
-relaxation by using a discrete diffusion process over categorical node and edge
-states \citep{vignac2022digress}. Molecular diffusion models in three
-dimensions address a related but distinct task: they generate atom coordinates
-or conformers rather than graph topology, and therefore require geometric
-training data \citep{hoogeboom2022equivariant}. GCDG is closest in motivation
-to conditional graph generation, but it does not diffuse the adjacency matrix
-or categorical edge state directly. It denoises a conditioned node feature
-matrix and delegates graph feasibility to the decoder.
+Autoregressive graph generators factorise graph generation into an ordered
+sequence of node and edge decisions. GraphRNN generates node and edge formations
+conditioned on the partial graph already produced, while GRAN improves this
+idea by generating blocks of nodes and edges using recurrent attention
+\citep{you2018graphrnn,liao2019gran}. These models make structural dependence
+explicit, but they introduce a sequential generation order. Variational graph
+generators instead encode a graph into a latent variable and decode a
+probabilistic graph, often a fully connected graph tensor up to a fixed maximum
+size \citep{kipf2016vgae,simonovsky2018graphvae}. Adversarial and flow-based
+molecular graph generators use implicit objectives or invertible
+transformations over adjacency and attribute tensors
+\citep{de2018molgan,madhawa2019graphnvp,zang2020moflow,lippe2020categorical}.
+These approaches are useful baselines, but they do not by themselves solve the
+conditional problem considered here: generation from an externally supplied
+graph-level descriptor \(C\).
 
-The distinction from variational graph autoencoders is especially important.
-A graph \gls{vgae} learns an encoder--decoder pathway
+Diffusion-based graph generators make a different choice. Continuous
+score-based graph models define a forward noising process on relaxed graph
+representations. For example, Niu et al.\ model a permutation-equivariant score
+over graph inputs and sample with annealed Langevin dynamics, while GDSS models
+node and edge variables jointly through a system of stochastic differential
+equations \citep{niu2020permutation,jo2022score}. This gives a stable
+score-matching objective, but the intermediate states are real-valued
+relaxations of graph objects. During the diffusion trajectory, an adjacency
+entry is no longer simply present or absent; structural quantities such as
+sparsity, cycles, degree sequence, and connectivity are therefore represented
+only indirectly until the graph is discretised.
+
+Discrete diffusion models address this by defining the forward process directly
+on categorical states. Discrete denoising diffusion models use transition
+matrices over finite classes, including absorbing or mask-like states
+\citep{austin2021structured}. DiGress applies this idea to graphs: node types
+and edge types are corrupted by categorical graph edits, and a graph transformer
+is trained to predict the clean graph from the noisy graph
+\citep{vignac2022digress}. This is a direct graph diffusion model because the
+reverse process operates on the graph state itself: at each denoising step the
+model updates categorical node and edge information, and the final sample is
+obtained from the learned reverse graph process.
+
+GCDG makes a different compromise. It uses a diffusion process over the padded
+node feature matrix \(X_t\), conditioned on the graph-level vector \(C\), but it
+does not use the adjacency matrix as the primary diffused object. Edge
+information is predicted from node latents and, when the optional joint
+edge-state variant is enabled, an edge-state summary can feed back into those
+latents. The final adjacency is still selected by a separate constraint-aware
+decoder. Thus, compared with direct graph diffusion, GCDG moves graph
+feasibility out of the stochastic reverse process and into an explicit graph
+realisation step.
+
+The distinction from a graph \gls{vgae} is also important. A \gls{vgae} follows
+an encoder--decoder pathway
 \[
     G \mapsto z \mapsto \hat G,
 \]
-where \(z\) is a latent variable inferred from the input graph. Conditional
-generation in GCDG follows a different pathway,
+where \(z\) is inferred from the input graph. GCDG instead follows the
+conditional pathway
 \[
     C(G_{\mathrm{ref}}) \mapsto \hat X_0 \mapsto \hat G,
 \]
 where \(C(G_{\mathrm{ref}})\) is an externally computed graph-level condition.
-The original graph \(G_{\mathrm{ref}}\) is not passed through a graph encoder
-inside the generator during sampling. Consequently, when a held-out condition is
-used, the question is not whether the model can reconstruct the exact held-out
-graph, but whether it can generate a graph whose decoded structure is
-compatible with the information retained by \(C\).
+The reference graph is not encoded by the generator at sampling time. When a
+held-out condition is used, the question is therefore not whether the model
+reconstructs the exact held-out adjacency matrix, but whether it generates a
+graph whose decoded structure is compatible with the information retained by
+\(C\).
 
-This distinction is important for interpreting comparisons with conditional
-DiGress-style models. A conditional DiGress adaptation places the graph-level
-condition into the model's global feature channel and samples node and edge
-classes through a discrete reverse process. The generator in
-this chapter instead places the graph-level condition into cross-attention
-memory and learns a conditional denoising process over padded node rows. Both
-models can be conditioned on the same graph-level vector \(C\), but they use
-different generative mechanisms.
-
-The benefit of this staged design is that it exposes intermediate
-objects that can be inspected: node counts, degree histograms, label histograms,
-edge probability matrices, and constraint-solver outputs. The cost is that the
-final graph quality depends not only on the neural denoiser, but also on the
-choice of representation and decoder.
-Implementation-level settings and ablation parameters are not part of the
-method claim itself; they are tabulated separately in
+This comparison motivates the baselines used in the experiments. Conditional
+DiGress tests a direct discrete graph-diffusion mechanism supplied with the
+same graph-level condition vector. The class-conditional \gls{vgae} tests a
+latent graph decoder baseline, but it receives only the requested class and not
+the full graph-level descriptor. The proposed generator tests the intermediate
+position: condition-guided diffusion over node-level representations followed
+by learned pairwise prediction and constrained graph decoding. The advantage of
+this staged design is inspectability: node counts, degree histograms,
+label histograms, edge probability matrices, and decoder outputs can be
+examined separately. The cost is that final graph quality depends jointly on
+the condition representation, the denoiser, and the decoder. Implementation
+settings and ablation parameters are therefore tabulated separately in
 Appendix~\ref{app:generator-parameters}.
 
 \section{Experimental Evaluation}
