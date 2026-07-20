@@ -1,0 +1,545 @@
+
+\chapter{Related Work}
+\label{ch:related}
+
+\section{Graph Representations and Graph Kernels}
+\label{sec:rw:kernels}
+
+Graphs are a fundamental data structure for modeling relationships among
+entities, with applications in social networks~\citep{newman2003structure},
+bioinformatics~\citep{borgwardt2005protein},
+chemoinformatics~\citep{weininger1988smiles}, recommender
+systems~\citep{ying2018graph}, and cybersecurity~\citep{10.1145/310889.310919}. For example, to encode a social network as a graph, nodes on the graphs will represent the users and edges are used to encode the relationship between two individuals. Unlike images or sequences embedded in regular grids, graphs capture irregular,
+non-Euclidean structures with variable neighbourhoods and complex
+topologies~\citep{bronstein2017geometric}. To enable machine learning on graph-structured data, a wide range of graph representation learning methods have been proposed. Early approaches include graph kernel methods \citep{nikolentzos2021graph}, which represent graphs through explicit or implicit similarity measures based on substructures, enabling the use of kernel-based classifiers for graph-level and node-level tasks. Matrix factorization methods  \citep{huang2022graphgdp} constitute another important class of representations, where graphs are encoded as matrices—such as adjacency, Laplacian, or transition matrices—and low-dimensional embeddings are obtained via spectral decomposition. More recently, deep neural network–based approaches, particularly graph neural networks (GNNs) \citep{kipf2017semi,xu2019powerful}, have emerged as a dominant paradigm. These models learn task-adaptive representations by iteratively aggregating and transforming information from local neighbourhoods, allowing them to jointly encode graph structure and node or edge attributes. Together, graph kernels, matrix factorization models, and deep neural approaches represent three complementary families of graph representations, differing in expressivity, scalability, and theoretical grounding.
+
+\subsection{ Graph Kernels}
+
+Historically the \emph{graph kernels} provided a classical and well-founded approach: They decompose graphs into substructures and measure similarity through carefully
+designed comparisons. Kernels are deterministic, interpretable, and often
+perform well in low-data settings.
+Many graph kernels are formulated within the \emph{R-convolution}
+framework~\citep{haussler1999}, which defines kernels over structured objects by decomposing them into collections of constituent parts and aggregating kernel evaluations over these parts. Examples include the graphlet
+kernel~\citep{shervashidze2009efficient}, Weisfeiler–Lehman (WL) subtree
+kernel~\citep{shervashidze2011weisfeiler}, and NSPDK~\citep{costa2010fast}. WL
+kernels are powerful but limited by the 1-WL test, while NSPDK counts
+fixed-radius neighborhoods around node pairs in close proximity. To move beyond purely discrete label matching and incorporate continuous node attributes, alternative kernel families introduce soft or probabilistic matching mechanisms.Marginalized random walk kernels~\citep{kashima2003marginalized,gartner2003graph,vishwanathan2010graph} and subgraph-matching kernels~\citep{kriege2012subgraph} achieve high expressiveness by summing over large spaces of walks or subgraph correspondences, weighting matches by attribute similarity. This expressiveness comes at a significant computational cost, as the number of admissible walks or matchings grows combinatorially with graph size, and kernel evaluation requires solving large linear systems or repeated matching problems. Propagation kernels~\citep{neumann2016propagation} mitigate this cost by diffusing node information and operating on aggregated distributions, but must rely on discretisation or hashing schemes to maintain efficiency.
+Shortest-path-based kernels~\citep{borgwardt2005shortest,feragen2013scalable} compare all-pairs shortest paths, which entails computing and matching path-based features whose number scales quadratically with the number of nodes. More recent approaches further relax exact label matching through optimal transport formulations, such as Wasserstein WL~\citep{togninalli2019wasserstein} and fused Gromov–Wasserstein kernels~\citep{vayer2019optimaltransportstructureddata}. These methods require solving optimal transport problems between node or subtree distributions, typically via linear or entropically regularized programs, leading to cubic or near-cubic complexity in the number of nodes and substantially higher memory requirements. Hybrid approaches integrate kernels with neural models, such as Deep Graph Kernels~\citep{yanardag2015deep} and Graph Neural Tangent
+Kernels~\citep{du2019graphnt}. 
+
+Often classical kernels assume
+discrete labels, relying on exact matches. Applied to continuous data, they
+typically require discretisation~\citep{neumann2016scalable}, which discards
+fine-grained information and may distort similarity. Empirically, kernels that
+integrate continuous features directly~\citep{feragen2013scalable} outperform
+those based on discretisation, but many variants still struggle with
+scalability, especially on larger graphs. 
+\subsection{ Matrix factorization}
+Matrix factorization models constitute one of the earliest approaches to graph representation learning and have been widely used for node embedding tasks. These methods typically rely on singular value decomposition or related spectral techniques to project graph-derived matrices—such as adjacency, Laplacian, or transition matrices—into low-dimensional latent spaces\.
+One key advantage of matrix factorization models is their relatively low training data requirement. Since embeddings are obtained through direct matrix decomposition rather than iterative parameter optimisation, these methods are particularly effective in low-data regimes, where neural network--based approaches may suffer from overfitting. In addition, by operating on global graph representations such as the Laplacian matrix or transition matrix, matrix factorization methods are able to capture proximity information between all pairs of nodes.Despite these advantages, matrix factorization approaches also exhibit several limitations \citep{hoang2023graph}. In particular, their computational and memory complexity scale poorly with graph size \citep{cao2015grarep}, as decomposing large matrices becomes prohibitively expensive for graphs with millions of nodes. Moreover, matrix factorization models struggle to handle incomplete or partially observed graphs, since missing or unseen values cannot be naturally incorporated into the decomposition process. As a result, these methods often lack generalisation capability when graph data are sparse or evolving, motivating the development of neural network--based models that can better extrapolate to unseen nodes and edges \citep{dettmers2018convolutional}.
+
+\subsection{ Random-walk-based methods}
+Random-walk-based methods learn node representations by sampling a large number of paths from a graph and treating the resulting node sequences analogously to sentences in natural language. By applying probabilistic language models such as skip-gram, these methods preserve node proximity by maximizing the likelihood of observing neighboring vertices within a fixed context window \citep{Chen_2020}. A seminal approach in this category is DeepWalk, which performs uniform random walks to capture local neighbourhood structure and implicitly factorizes a node co-occurrence matrix \citep{perozzi2014deepwalk}. Building on this idea, node2vec introduces a biased random-walk strategy that interpolates between breadth-first and depth-first sampling, allowing the model to capture both community structure and structural equivalence in graphs \citep{grover2016node2vec}.
+
+
+\subsection{ Deep neural network models}
+Deep neural network–based models have emerged as a dominant paradigm for graph representation learning, driven by advances in deep learning and their ability to jointly model graph structure and node or edge attributes.These models extend classical embedding techniques by learning representations through parameterised neural architectures, enabling inductive generalisation to unseen nodes and graphs. The most prominent class within this family is Graph Neural Networks (GNNs), which learn node or graph embeddings by iteratively aggregating and transforming information from local neighbourhoods. Early GNN architectures were based on recurrent neural networks, where node representations are updated recursively until convergence using shared parameters across layers \citep{li2016ggnn,selsam2019sat,tonshoff2023csp}. While recurrent GNNs can capture both local and global dependencies, their use of identical weights across layers limits their ability to distinguish structural information at different scales. To address these limitations, graph convolutional networks (GCNs) were introduced, employing layer-wise transformations that allow distinct parameters at each depth and more effective modeling of hierarchical graph structures \citep{kipf2017semi}.Graph convolutional models can be further divided into spectral approaches, which operate in the graph Fourier domain \citep{bruna2014spectral,defferrard2016cnn}  and spatial approaches, which perform message passing directly on the graph topology \citep{hamilton2017graphsage, velivckovic2018gat, xu2019powerful} . More recent developments include graph autoencoders, such as the Graph Autoencoder (GAE) and Variational Graph Autoencoder (VGAE), which learn embeddings by reconstructing graph structures from latent representations \citep{kipf2016vgae}, and attention-based GNNs, which assign adaptive importance weights to neighboring nodes during aggregation 
+\citep{velivckovic2018gat}.
+ Furthermore, inspired by advances in natural language processing, graph transformer models have been proposed to capture long-range dependencies through global self-attention mechanisms, often outperforming traditional GNNs on complex graph learning tasks. \citep{dwivedi2021graph, ying2021transformers, kreuzer2021rethinking, rampavsek2022recipe}.Despite their expressive power, deep neural network–based graph models face challenges such as over-smoothing, scalability, and sensitivity to noise, motivating ongoing research into more robust and theoretically grounded architectures. \citep{oono2019graph}
+
+\section{Graph Generative Models}
+\label{sec:rw:generation}
+
+% Preamble (make sure these exist somewhere)
+% \usepackage{tikz}
+% \usetikzlibrary{arrows.meta,positioning,calc}
+
+\begin{figure}[H]
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  box/.style={draw, rounded corners, align=center, inner sep=7pt},
+  cat/.style={box, minimum width=4.4cm},
+  emph/.style={box, very thick, fill=blue!12, draw=blue!60!black},
+  arrow/.style={-{Latex[length=2.2mm]}, thick},
+  item/.style={draw, rounded corners, align=left, inner sep=4pt, text width=4.4cm},
+  note/.style={align=left, text width=4.4cm},
+  spacer/.style={minimum height=3mm} % controls clearance between arrow tip and box
+]
+
+% ---------------------------
+% TUNING KNOBS (edit these only)
+% ---------------------------
+(controls bus->category arrow length)
+\def\catToExGap{20mm}    % category row -> examples row vertical gap (smaller = closer)
+\def\noteGap{16mm}       % examples row -> pros/cons row gap
+\def\busDrop{12mm}
+\def\busHeight{10mm}
+
+% ---------------------------
+% Top title
+% ---------------------------
+\node[box, minimum width=23.0cm] (top)
+{\textbf{Deep Graph Generative Models (Taxonomy)}};
+
+% ---------------------------
+% Column geometry (kept wide enough to avoid overlaps)
+% step = 5.6cm, total span = 22.4cm
+% ---------------------------
+\coordinate (catY) at ($(top.south)+(0,-14mm)$);
+
+\coordinate (c1) at ($(catY)+(-11.2cm,0)$);
+\coordinate (c2) at ($(catY)+(-5.6cm,0)$);
+\coordinate (c3) at ($(catY)+(0.0cm,0)$);
+\coordinate (c4) at ($(catY)+(5.6cm,0)$);
+\coordinate (c5) at ($(catY)+(11.2cm,0)$);
+
+% ---------------------------
+% Row 1 categories (top-aligned)
+% ---------------------------
+\node[cat,  anchor=north] (ar)   at (c1) {Autoregressive};
+\node[cat,  anchor=north] (vae)  at (c2) {VAE-based};
+\node[cat,  anchor=north] (flow) at (c3) {Flow-based};
+\node[emph, anchor=north] (diff) at (c4) {\textbf{Diffusion-based}\\\footnotesize (highlight)};
+\node[cat,  anchor=north] (hyb)  at (c5) {Hybrid (composed)};
+
+% ---------------------------
+% BUS + middle connector line (NO arrowhead)
+% ---------------------------
+\coordinate (busY) at ($(catY)+(0,\busHeight)$);
+\coordinate (busL) at ($(ar.north |- busY)$);
+\coordinate (busR) at ($(hyb.north |- busY)$);
+
+% plain line from title to bus (no arrowhead)
+\draw[thick] (top.south) -- ($(top.south)+(0,-\busDrop)$);
+
+% bus line
+\draw[thick] (busL) -- (busR);
+
+% identical arrows from bus to each category
+\foreach \n in {ar,vae,flow,diff,hyb}{
+  \draw[arrow] (\n.north |- busY) -- (\n.north);
+}
+
+% ---------------------------
+% Row 2: aligned examples row (closer to categories)
+% ---------------------------
+\coordinate (exY) at ($(catY)+(0,-\catToExGap)$);
+
+\node[spacer, anchor=north] (ar_sp)   at (c1 |- exY) {};
+\node[spacer, anchor=north] (vae_sp)  at (c2 |- exY) {};
+\node[spacer, anchor=north] (flow_sp) at (c3 |- exY) {};
+\node[spacer, anchor=north] (diff_sp) at (c4 |- exY) {};
+\node[spacer, anchor=north] (hyb_sp)  at (c5 |- exY) {};
+
+% Example boxes (all anchor=north -> same top edge)
+\node[item, anchor=north] (ar_ex) at ($(ar_sp.south)+(0,-2mm)$) {\textbf{Examples:}\\[-1mm]
+{\scriptsize
+GraphRNN~\protect\cite{you2018graphrnn}\\
+DeepGMG~\protect\cite{li2018deepgmg}\\
+GRAN~\protect\cite{liao2019gran}\\
+GraphGen~\protect\cite{goyal2020graphgen}\\
+GraphAF (AR)~\protect\cite{shi2020graphaf}\\
+GraphDF~\protect\cite{lu2022graphdf}\\
+MolGPT~\protect\cite{bagal2022molgpt}\\
+CGVAE~\protect\cite{liu2018constrained}
+}};
+
+\node[item, anchor=north] (vae_ex) at ($(vae_sp.south)+(0,-2mm)$) {\textbf{Examples:}\\[-1mm]
+{\scriptsize
+GraphVAE~\protect\cite{simonovsky2018graphvae}\\
+VGAE~\protect\cite{kipf2016vgae}\\
+Graphite~\protect\cite{grover2019graphite}\\
+JT-VAE~\protect\cite{jin2018junction}\\
+MolGAN~\protect\cite{de2018molgan}\\
+GVAE (grammar)~\protect\cite{kusner2017gvae}\\
+HierVAE~\protect\cite{jin2020hierarchical}\\
+NeVAE~\protect\cite{samanta2020nevae}
+}};
+
+\node[item, anchor=north] (flow_ex) at ($(flow_sp.south)+(0,-2mm)$) {\textbf{Examples:}\\[-1mm]
+{\scriptsize
+GraphNVP~\protect\cite{madhawa2019graphnvp}\\
+MoFlow~\protect\cite{zang2020moflow}\\
+GraphAF~\protect\cite{shi2020graphaf}\\
+GraphCNF~\protect\cite{lippe2022graphcnf}\\
+FFJORD~\protect\cite{grathwohl2018ffjord}\\
+GRevNet~\protect\cite{gomez2017reversible}\\
+FlowMol~\protect\cite{zang2020moflow}\\
+GraphDF~\protect\cite{lu2022graphdf}
+}};
+
+\node[item, anchor=north] (diff_ex) at ($(diff_sp.south)+(0,-2mm)$) {\textbf{Examples:}\\[-1mm]
+{\scriptsize
+GDSS~\protect\cite{jo2022gdss}\\
+DiGress~\protect\cite{vignac2022digress}\\
+GraphGDP~\protect\cite{huang2022graphgdp}\\
+EDGE~\protect\cite{chen2023edge}\\
+GraphDDPM~\protect\cite{xu2022graphddpm}\\
+EDM (3D molecules)~\protect\cite{hoogeboom2022equivariant}\\
+Discrete DDPM~\protect\cite{hoogeboom2021discrete}\\
+Score-based graphs~\protect\cite{jo2022gdss}
+}};
+
+\node[item, anchor=north] (hyb_ex) at ($(hyb_sp.south)+(0,-2mm)$) {\textbf{Examples:}\\[-1mm]
+{\scriptsize
+GraphAF (Flow+AR)~\protect\cite{shi2020graphaf}\\
+GraphDF (Flow+discrete)~\protect\cite{lu2022graphdf}\\
+MoFlow (Flow+chemistry)~\protect\cite{zang2020moflow}\\
+JT-VAE + search~\protect\cite{jin2018junction}\\
+VAE + normalizing flow~\protect\cite{rezende2015variational}\\
+AR + latent variable~\protect\cite{kingma2014vae}\\
+Discrete diffusion + guidance~\protect\cite{hoogeboom2021discrete}\\
+Score model + correction~\protect\cite{song2021score}
+}};
+
+% ---------------------------
+% Arrows category -> spacer targets (arrow length controlled by catToExGap + spacer height)
+% ---------------------------
+\draw[arrow] (ar.south)   -- (ar_sp.north);
+\draw[arrow] (vae.south)  -- (vae_sp.north);
+\draw[arrow] (flow.south) -- (flow_sp.north);
+\draw[arrow] (diff.south) -- (diff_sp.north);
+\draw[arrow] (hyb.south)  -- (hyb_sp.north);
+
+% ---------------------------
+% Row 3 pros/cons aligned
+% ---------------------------
+\coordinate (noteY) at ($(ar_ex.south)+(0,-\noteGap)$);
+
+\node[note, anchor=north] (ar_note)   at (c1 |- noteY) {\textbf{Pros:} exact likelihood\\\textbf{Cons:} order sensitivity, slow sampling};
+\node[note, anchor=north] (vae_note)  at (c2 |- noteY) {\textbf{Pros:} smooth latent space\\\textbf{Cons:} weak hard-constraint guarantees};
+\node[note, anchor=north] (flow_note) at (c3 |- noteY) {\textbf{Pros:} exact density\\\textbf{Cons:} architectural rigidity};
+\node[note, anchor=north] (diff_note) at (c4 |- noteY) {\textbf{Pros:} strong sample quality, stable\\\textbf{Cons:} expensive sampling, discrete validity};
+\node[note, anchor=north] (hyb_note)  at (c5 |- noteY) {\textbf{Pros:} combine strengths\\\textbf{Cons:} added complexity, tuning};
+
+% ---------------------------
+% SOTA label: very close but OUTSIDE (no overlap)
+% ---------------------------
+\node[font=\footnotesize, anchor=south east] at ($(diff.north east)+(0mm,1.5mm)$) {SOTA};
+
+\end{tikzpicture}%
+}
+\caption{Taxonomy of deep graph generative models. Representative examples are shown for each family (citations in boxes). Diffusion-based models are highlighted as a recent state-of-the-art direction.}
+\label{fig:graphgen_taxonomy}
+\end{figure}
+
+
+
+
+\begin{figure}[H]
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  box/.style={draw, rounded corners, align=center, inner sep=7pt},
+  cat/.style={box, minimum width=3.7cm}, % narrower to fit 6 columns
+  emph/.style={box, very thick, fill=blue!12, draw=blue!60!black},
+  arrow/.style={-{Latex[length=2.2mm]}, thick},
+  item/.style={draw, rounded corners, align=left, inner sep=4pt, text width=3.7cm},
+  note/.style={align=left, text width=3.7cm},
+  spacer/.style={minimum height=3mm}
+]
+
+% ---------------------------
+% TUNING KNOBS
+% ---------------------------
+\def\catToExGap{18mm}
+\def\noteGap{14mm}
+\def\busDrop{12mm}
+\def\busHeight{10mm}
+
+% ---------------------------
+% Top title
+% ---------------------------
+\node[box, minimum width=23.0cm] (top)
+{\textbf{Deep Graph Generative Models (Taxonomy)}};
+
+% ---------------------------
+% Column geometry for 6 columns
+% step = 4.2cm, total span = 21.0cm
+% ---------------------------
+\coordinate (catY) at ($(top.south)+(0,-14mm)$);
+
+\coordinate (c1) at ($(catY)+(-10.5cm,0)$);
+\coordinate (c2) at ($(catY)+(-6.3cm,0)$);
+\coordinate (c3) at ($(catY)+(-2.1cm,0)$);
+\coordinate (c4) at ($(catY)+( 2.1cm,0)$);
+\coordinate (c5) at ($(catY)+( 6.3cm,0)$);
+\coordinate (c6) at ($(catY)+(10.5cm,0)$);
+
+% ---------------------------
+% Row 1 categories
+% ---------------------------
+\node[cat,  anchor=north] (ar)   at (c1) {Autoregressive};
+\node[cat,  anchor=north] (vae)  at (c2) {VAE-based};
+\node[cat,  anchor=north] (flow) at (c3) {Flow-based};
+\node[cat,  anchor=north] (gan)  at (c4) {GAN-based};
+\node[emph, anchor=north] (diff) at (c5) {\textbf{Diffusion-based}\\\footnotesize (highlight)};
+\node[cat,  anchor=north] (sim)  at (c6) {Simulation-based};
+
+% ---------------------------
+% BUS line
+% ---------------------------
+\coordinate (busY) at ($(catY)+(0,\busHeight)$);
+\coordinate (busL) at ($(ar.north |- busY)$);
+\coordinate (busR) at ($(sim.north |- busY)$);
+
+\draw[thick] (top.south) -- ($(top.south)+(0,-\busDrop)$);
+\draw[thick] (busL) -- (busR);
+
+\foreach \n in {ar,vae,flow,gan,diff,sim}{
+  \draw[arrow] (\n.north |- busY) -- (\n.north);
+}
+
+% ---------------------------
+% Row 2: examples
+% ---------------------------
+\coordinate (exY) at ($(catY)+(0,-\catToExGap)$);
+
+\node[spacer, anchor=north] (ar_sp)   at (c1 |- exY) {};
+\node[spacer, anchor=north] (vae_sp)  at (c2 |- exY) {};
+\node[spacer, anchor=north] (flow_sp) at (c3 |- exY) {};
+\node[spacer, anchor=north] (gan_sp)  at (c4 |- exY) {};
+\node[spacer, anchor=north] (diff_sp) at (c5 |- exY) {};
+\node[spacer, anchor=north] (sim_sp)  at (c6 |- exY) {};
+
+\node[item, anchor=north] (ar_ex) at ($(ar_sp.south)+(0,-2mm)$) {\textbf{Examples:}\\[-1mm]
+{\scriptsize
+GraphRNN\\
+GRAN\\
+BiGG\\
+NetGAN (walk-based)\\
+GraphGPT (tokenized graphs)
+}};
+
+\node[item, anchor=north] (vae_ex) at ($(vae_sp.south)+(0,-2mm)$) {\textbf{Examples:}\\[-1mm]
+{\scriptsize
+GraphVAE\\
+VGAE / JT-VAE\\
+NeVAE\\
+Graphite\\
+VRDAG (dynamic)
+}};
+
+\node[item, anchor=north] (flow_ex) at ($(flow_sp.south)+(0,-2mm)$) {\textbf{Examples:}\\[-1mm]
+{\scriptsize
+MoFlow\\
+GraphDF\\
+GraphNVP\\
+GraphCNF\\
+GGFlow
+}};
+
+\node[item, anchor=north] (gan_ex) at ($(gan_sp.south)+(0,-2mm)$) {\textbf{Examples:}\\[-1mm]
+{\scriptsize
+GraphGAN\\
+MolGAN\\
+NetGAN\\
+CONDGEN\\
+GCPN
+}};
+
+\node[item, anchor=north] (diff_ex) at ($(diff_sp.south)+(0,-2mm)$) {\textbf{Examples:}\\[-1mm]
+{\scriptsize
+DiGress\\
+GraphGDP\\
+GDSS\\
+EDGE\\
+EDM (3D molecules)
+}};
+
+\node[item, anchor=north] (sim_ex) at ($(sim_sp.south)+(0,-2mm)$) {\textbf{Examples:}\\[-1mm]
+{\scriptsize
+Erd\H{o}s--R\'enyi (ER)\\
+Barab\'asi--Albert (BA)\\
+LLM4GraphGen \\
+IGDA \\
+GAG \\
+GraphMaster \\
+}};
+
+% Arrows category -> examples
+\foreach \a/\b in {ar/ar_sp,vae/vae_sp,flow/flow_sp,gan/gan_sp,diff/diff_sp,sim/sim_sp}{
+  \draw[arrow] (\a.south) -- (\b.north);
+}
+
+% ---------------------------
+% Row 3 pros/cons
+% ---------------------------
+\coordinate (noteY) at ($(ar_ex.south)+(0,-\noteGap)$);
+
+\node[note, anchor=north] (ar_note)   at (c1 |- noteY) {\textbf{Pros:} exact likelihood\\\textbf{Cons:} order sensitivity, slow};
+\node[note, anchor=north] (vae_note)  at (c2 |- noteY) {\textbf{Pros:} smooth latent space\\\textbf{Cons:} validity constraints hard};
+\node[note, anchor=north] (flow_note) at (c3 |- noteY) {\textbf{Pros:} exact density\\\textbf{Cons:} rigid invertible design};
+\node[note, anchor=north] (gan_note)  at (c4 |- noteY) {\textbf{Pros:} fast sampling\\\textbf{Cons:} instability, mode collapse};
+\node[note, anchor=north] (diff_note) at (c5 |- noteY) {\textbf{Pros:} high quality, stable\\\textbf{Cons:} many steps, expensive};
+\node[note, anchor=north] (sim_note)  at (c6 |- noteY) {\textbf{Pros:} scalable, no training\\\textbf{Cons:} less faithful/expressive};
+
+% SOTA label
+\node[font=\footnotesize, anchor=south east] at ($(diff.north east)+(0mm,1.5mm)$) {SOTA};
+
+\end{tikzpicture}%
+}
+\caption{Taxonomy of graph generative models. Deep learning families include autoregressive, VAE, flow, GAN, and diffusion models; simulation-based generators rely on explicit stochastic rules.}
+\label{fig:graphgen_taxonomy}
+\end{figure}
+
+
+
+
+
+Graph generation has attracted significant attention in recent years due to its importance in applications such as molecular design, social network modeling, and knowledge graph synthesis. Unlike grid-structured data, graphs are inherently discrete, permutation-invariant, and subject to global structural constraints, which makes their generation particularly challenging. Early approaches to deep graph generation primarily relied on autoregressive and variational formulations; however, diffusion-based models have recently emerged as a powerful alternative.
+
+\subsection{Autoregressive and Variational Graph Generation}
+
+Early deep graph generative models typically followed an autoregressive paradigm, in which graphs are constructed sequentially by adding nodes and edges. Models such as GraphRNN generate adjacency structures step-by-step using recurrent neural networks, enabling exact likelihood estimation but suffering from sensitivity to node ordering and slow sampling procedures \cite{you2018graphrnn}. Block-wise autoregressive models such as GRAN partially alleviate these limitations but remain computationally expensive for large graphs \cite{liao2019gran}.
+
+Variational autoencoder (VAE)-based methods encode graphs into continuous latent spaces and decode them back into discrete structures. Variational Graph Auto-Encoders and their extensions have been widely studied \cite{kipf2016vgae}, with domain-specific adaptations such as Junction Tree VAEs designed to improve validity in molecular graph generation \cite{jin2018junction}. Despite their flexibility, VAE-based models often struggle to enforce global structural constraints and may produce invalid or implausible graphs at generation time.
+
+\subsection{Diffusion Models for Discrete Data}
+
+Diffusion models were originally introduced for continuous data, where samples are generated by reversing a gradual noising process \cite{ho2020ddpm}. Subsequent work extended diffusion frameworks to discrete and categorical domains. Discrete denoising diffusion models and related approaches adapt the diffusion process using categorical transitions or continuous relaxations \cite{hoogeboom2021discrete,austin2021structured}. These methods provide a theoretical foundation for applying diffusion to graph-structured data, where both topology and attributes are discrete.
+
+\subsection{Diffusion-Based Graph Generative Models}
+
+Building on advances in discrete diffusion, several works have proposed diffusion-based models specifically tailored to graphs. DiGress performs joint diffusion over node attributes and adjacency matrices, enabling the generation of attributed graphs while preserving permutation invariance \cite{vignac2022digress}. GraphGDP introduces a discrete diffusion framework that explicitly models node and edge attributes, demonstrating improved generation quality over earlier methods \cite{kong2023graphgdp}.
+
+Score-based generative models have also been adapted to graph domains by formulating diffusion processes in continuous time using stochastic differential equations \cite{song2021score}. While these approaches achieve strong empirical performance, they typically rely on probabilistic decoding or soft constraints, which do not guarantee satisfaction of strict structural requirements such as exact degree sequences or graph connectivity.
+
+\subsection{Constraint-Aware and Attribute-Controlled Generation}
+
+A key limitation of existing diffusion-based graph generators lies in their limited ability to enforce hard combinatorial constraints. Most prior methods incorporate constraints implicitly through training objectives or regularization terms, which may still lead to invalid samples. Recent research has begun to explore hybrid approaches that combine neural generative models with combinatorial optimisation techniques, such as integer linear programming, to enforce exact structural properties during decoding.
+
+In parallel, attribute-aware graph generation has gained increasing attention. Modern graph generators often incorporate node labels, edge types, and global conditioning information through auxiliary prediction heads or conditional embeddings. However, the integration of explicit discrete attribute supervision with diffusion-based generation remains an open research problem.
+
+\subsection{Summary}
+
+In summary, diffusion-based models represent the current state of the art in deep graph generation, offering improved stability and sample quality compared to autoregressive and variational approaches. Nevertheless, challenges remain in handling discrete attributes and enforcing exact structural constraints. These limitations motivate hybrid diffusion-based architectures that decouple representation learning from constraint-satisfying decoding, which is the direction explored in this thesis.
+
+
+\section{Evaluation of Graph Generative Models}
+
+The evaluation of generated graphs remains a challenging problem due to their high-dimensional structure and unique combinatorial properties. Unlike images or text, graphs exhibit complex dependencies between nodes and edges, making direct distributional comparison difficult. Existing evaluation approaches typically compare distributions of real and generated graphs using either graph statistics--based metrics \citep{you2018graphrnn,liao2019gran,obrady2021evaluation} or neural network--based metrics \citep{kynkaanniemi2019improved,naeem2020reliable,heusel2017gans}.  
+
+Neural network--based metrics, such as precision and recall in learned embedding spaces, are often sensitive to outliers and may fail to detect matching distributions. In particular, these metrics can assign high scores to generators that simply memorize the training data. In this context, \emph{generalisation} measures the extent to which a model reproduces training samples, while \emph{diversity} captures its ability to represent multiple modes of the data distribution and detect failures such as mode collapse or mode dropping. Graph statistics--based metrics can partially address generalisation issues but are generally poor at capturing diversity. Consequently, a comprehensive evaluation framework should combine the strengths of both statistical and neural approaches.
+
+\subsection{Statistical Divergence Metrics}
+A standard approach for comparing empirical distributions of relational data such as
+graphs is the \emph{Maximum Mean Discrepancy} (MMD). GGiven two sets of samples
+\(\mathcal{X} = \{x_i\}_{i=1}^n\) and
+\(\mathcal{Y} = \{y_j\}_{j=1}^m\), MMD is defined as:
+\[
+\mathrm{MMD}(\mathcal{X},\mathcal{Y}) =
+\frac{1}{n^2}\sum_{i,j=1}^n k(x_i,x_j)
++ \frac{1}{m^2}\sum_{i,j=1}^m k(y_i,y_j)
+- \frac{2}{nm}\sum_{i=1}^n\sum_{j=1}^m k(x_i,y_j),
+\]
+where \(k(\cdot,\cdot)\) is a positive definite kernel function defined either
+directly on graphs—such as random walk kernels, Weisfeiler--Lehman kernels, or
+the Neighborhood Subgraph Pairwise Distance Kernel (NSPDK)—or on vectorial graph
+representations, for example linear or radial basis function (RBF) kernels.
+In the case of the RBF kernel,
+\[
+k(x_i, x_j) = \exp\!\left(-\frac{d(x_i, x_j)}{2\sigma^2}\right),
+\]
+where \(d(\cdot,\cdot)\) denotes a distance function and \(\sigma\) is the
+bandwidth parameter. Common choices for \(d\) include the Earth Mover’s Distance
+\citep{rubner2000emd}, Jensen--Shannon divergence, Hellinger distance, Kullback--Leibler
+divergence, and total variation distance \citep{scheffe1947convergence}. As shown by
+\citet{obrady2021evaluation}, one limitation of MMD is that it does not necessarily
+increase monotonically as two distributions become increasingly dissimilar, which
+can complicate interpretation.
+
+In addition to MMD, the average Kullback--Leibler divergence
+\citep{kullback1951information} is frequently used to compare specific graph
+statistics, most commonly the node degree distribution, between generated and
+reference graph sets.
+
+\subsection{Graph Statistics--Based Metrics}
+
+Graph statistics--based metrics were popularized by \citet{you2018graphrnn}. These include comparisons of degree distributions, clustering coefficient distributions, graph spectra derived from the normalized Laplacian, and node orbit count distributions. Scalar statistics such as triangle counts, assortativity, and the size of the largest connected component are also commonly reported, although they cannot be directly used to measure distances between graph distributions.
+
+For molecular graphs, these statistics do not naturally account for labelled nodes and edges, and their computation can be prohibitively expensive \citep{obrady2021evaluation}. These limitations have led to the widespread adoption of NSPDK-based MMD \citep{costa2010fast,thompson2022evaluationmetricsgraphgenerative}, which naturally incorporates discrete attributes while remaining computationally tractable. Nevertheless, graph statistics alone are insufficient to detect diversity-related failures such as mode collapse.
+
+\subsection{Neural Network--Based Metrics}
+
+Neural evaluation metrics are adapted from the computer vision literature and rely
+on learned graph embeddings. Typically, a graph neural network is used to extract
+vector representations, and distances between real and generated distributions are
+computed using metrics such as Maximum Mean Discrepancy (MMD) or Fréchet Distance
+\citep{heusel2017gans}.
+
+Improved Precision and Recall (P\&R) \citep{kynkaanniemi2019improved} and Density and
+Coverage (D\&C) \citep{naeem2020reliable} are designed to capture fidelity and
+diversity by estimating the overlap between distributions in embedding space. These
+methods define local neighbourhoods using \(k\)-nearest neighbours or hyperspheres
+around embeddings. The Fréchet Distance approximates embedding distributions as
+multivariate Gaussians parameterised by their mean and covariance.
+
+More recent evaluation measures explicitly disentangle fidelity and diversity.
+The VENDI score \citep{friedman2023vendi} provides a principled information-theoretic
+measure of diversity based on entropy in kernel space, while remaining independent
+of task-specific classifiers. Building on this perspective, Jalali et al.
+\citep{jalali2024fkea} propose FKEA, a scalable, reference-free evaluation framework
+that approximates VENDI and R\'enyi Kernel Entropy, enabling practical diversity
+assessment for large-scale generative models. These methods are capable of detecting
+failure modes such as mode collapse that scalar statistics often miss; however, they
+inherit fragility from the embedding representations on which they rely and lack
+distribution-free guarantees. As a result, their reliability may vary significantly
+across domains and evaluation settings \citep{parmar2022aliased,betzalel2022study}.
+
+Several works have proposed untrained or randomly initialized graph neural networks
+for embedding extraction \citep{thompson2022evaluationmetricsgraphgenerative}, while
+others advocate contrastively trained GNNs for improved reliability
+\citep{shirzad2022evaluatinggraphgenerativemodels}. However, learned representations
+may fail to capture domain-specific constraints, such as chemical validity
+\citep{hess2018chemical}, and neural metrics generally remain unable to distinguish
+high-quality samples from exact copies of the training data.
+
+
+
+\subsection{Self-Quality Metrics}
+
+Self-quality metrics evaluate generated graphs independently of reference distributions. \emph{Validity} measures whether generated graphs satisfy structural or domain-specific constraints, such as chemical feasibility in molecular generation. \emph{Uniqueness} assesses diversity by measuring the proportion of distinct graphs, while \emph{novelty} evaluates generalisation by identifying samples not present in the training set. Graphs that are subgraph-isomorphic to training examples are typically considered non-novel.
+
+\subsection{Classifier-Based Evaluation}
+
+Classifier-based evaluation methods use discriminative models to assess the similarity
+between real and generated graph distributions. Early approaches train classifiers on
+real graphs and evaluate their performance on generated samples
+\citep{fan2019labelled,sun2019graph}. More recent methods employ graph isomorphism
+networks (GINs) \citep{xu2019powerful} and compute Fréchet distances between learned
+representations. Other approaches train separate classifiers on real and generated data
+and compare their predictive performance on a shared test set.
+While effective in certain settings, these methods inherit the limitations of neural
+metrics and may fail to detect memorisation.
+Related classifier-based protocols such as \emph{GAN-train} and \emph{GAN-test}
+\citep{shmelkov2018good} as well as \emph{Train-on-Synthetic-Test-on-Real} (TSTR)
+\citep{hyland2017real,yoon2019time} evaluate whether synthetic data can support
+downstream predictive tasks. These protocols directly link generative model evaluation
+to practical utility; however, results are typically reported as point estimates without
+associated uncertainty, making it difficult to assess the statistical significance of
+observed differences. More broadly, graph generation research has often relied on
+plausibility heuristics or manual inspection \citep{you2018graphrnn}, highlighting the
+lack of systematic and statistically grounded evaluation tools.
+
+
+Across domains, the field has moved from
+brittle scalars to fragile multi-dimensional measures and under-specified classifier probes.
+memorisation remains a persistent blind spot, and domain-specific metrics only partially
+address the problem. This fragmented landscape motivates the need for evaluation that is
+interpretable, statistically guaranteed, resistant to copying, and applicable across modalities
+The evaluation of graph generative models often relies on prior knowledge encoded
+through hand-crafted statistics or learned feature representations, whereas real-world
+applications typically require expensive downstream evaluations. For instance, many
+neural network--based metrics compare distributions in an embedding space using
+summary statistics of learned features, such that similarity between real and generated
+samples is defined in terms of feature statistics rather than direct distributional
+equivalence \citep{heusel2017gans}.
+Overall, no single evaluation metric is sufficient for assessing graph generative models. A robust evaluation protocol should combine statistical, neural, and task-specific metrics to capture both fidelity and diversity while accounting for domain constraints.
+
+
+\section{Summary and Positioning of This Thesis}
+\label{sec:rw:summary}

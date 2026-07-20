@@ -1,0 +1,350 @@
+\documentclass[a4paper,12pt,twoside]{book}
+
+% =========================================================
+% Fonts / language
+% =========================================================
+\usepackage{fontspec}
+\setmainfont{Arial}
+\usepackage[UKenglish]{babel}
+\usepackage{csquotes}
+
+\usepackage[export]{adjustbox}
+
+% =========================================================
+% Bibliography (biblatex + biber)
+% =========================================================
+\usepackage[
+  style=authoryear,
+  citestyle=authoryear,
+  backend=biber,
+  dashed=false,
+  natbib=true,
+  uniquename=false,
+  giveninits,
+  uniquelist=false,
+  maxcitenames=3,
+  mincitenames=1,
+  maxbibnames=10,
+  minbibnames=10,
+  backref=true,
+  backrefstyle=three
+]{biblatex}
+\addbibresource{refs.bib}
+
+% =========================================================
+% Core math / theorem packages
+% =========================================================
+\usepackage{mathtools}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{amsthm}
+\interdisplaylinepenalty=2500
+
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% =========================================================
+% Graphics / figures / tables
+% =========================================================
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,shapes.geometric,fit,backgrounds,decorations.pathreplacing}
+
+\usepackage{caption}
+\usepackage{subcaption}
+\captionsetup{font=small}
+
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{ltablex}
+\keepXColumns
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{adjustbox}
+\usepackage[table]{xcolor}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{xltabular}
+% =========================================================
+% Algorithms / lists / misc math helpers
+% =========================================================
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+\algrenewcommand\algorithmiccomment[1]{\hfill\textit{ #1 }}
+
+\usepackage{enumitem}
+\usepackage{braket}
+
+% =========================================================
+% Typography / spacing
+% =========================================================
+\usepackage{microtype}
+\usepackage[onehalfspacing]{setspace}
+\usepackage{breakcites}
+\usepackage{xspace}
+\newcommand*{\eg}{e.g.\@\xspace}
+\newcommand*{\ie}{i.e.\@\xspace}
+\usepackage{tabularx,booktabs,array} % preamble
+
+% better empty set symbol
+\let\oldemptyset\emptyset
+\let\emptyset\varnothing
+% =========================================================
+% Table colors and symbols
+% =========================================================
+
+\usepackage{ifthen}
+\usepackage{afterpage}
+
+\usepackage[table]{xcolor}   % enables row/column coloring in tables
+\usepackage{colortbl}
+
+\usepackage{pifont}          % checkmark / cross symbols
+
+\definecolor{passblue}{HTML}{DCEEFF}
+\definecolor{failred}{HTML}{FFE5E5}
+\definecolor{failgray}{HTML}{F0F0F0}
+
+% Check / cross symbols
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{\ding{55}}
+% =========================================================
+% Utilities
+% =========================================================
+\usepackage{ifthen}
+\usepackage{afterpage}
+
+\newcommand{\TO}{\textit{TO}}
+\newcommand{\mps}[2]{#1 {\scriptsize$\pm$ #2}}
+
+% =========================================================
+% Page layout
+% =========================================================
+\usepackage[
+  a4paper,
+  left=30mm, right=30mm,
+  top=20mm, bottom=20mm,
+  includehead,includefoot
+]{geometry}
+
+% =========================================================
+% Headers / Footers
+% =========================================================
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+
+\fancyhead[LE]{\thepage}
+\fancyhead[RO]{\thepage}
+\fancyhead[LO]{\nouppercase{\rightmark}}
+\fancyhead[RE]{\nouppercase{\leftmark}}
+
+\setlength{\headheight}{14pt}
+\renewcommand{\headrulewidth}{0.5pt}
+
+
+
+% =========================================================
+% Epigraph
+% =========================================================
+\usepackage{epigraph}
+\renewcommand{\epigraphsize}{\large\itshape}
+\setlength\epigraphwidth{10cm}
+\setlength\epigraphrule{0pt}
+
+% =========================================================
+% Hyperref (load late)
+% =========================================================
+\usepackage[hyperfootnotes=false]{hyperref}
+\usepackage{footnotebackref}
+\hypersetup{
+  hidelinks,
+  pdftitle  = {Robust and Interpretable Methods for Graph Representation, Generation, and Evaluation},
+  pdfauthor = {Cosmina Simona Simionescu}
+}
+
+% =========================================================
+% Backreferences formatting in bibliography
+% =========================================================
+\DeclareListFormat{pageref}{%
+  \ifthenelse{\value{listcount}=1}
+    {\hyperpage{#1}}
+    {\ifthenelse{\value{listcount}<\value{liststop}}
+      {\addcomma\addspace\hyperpage{#1}}
+      {\ifnumequal{\value{listcount}}{\value{liststop}}
+        {\addspace{}and\addspace\hyperpage{#1}}{}%
+      }%
+    }%
+}
+
+\DefineBibliographyStrings{english}{%
+  backrefpage  = {Cited on page},
+  backrefpages = {Cited on pages},
+}
+
+% =========================================================
+% Glossary + Acronyms
+% =========================================================
+\usepackage[acronym,toc,nonumberlist]{glossaries}
+\makeglossaries
+
+\input{frontmatter/abbreviations}
+
+% =========================================================
+% Title page helpers
+% =========================================================
+\newcommand{\thesisTitle}{Methods for Graph Representation, Generation, and Evaluation}
+\newcommand{\thesisDate}{July, 2026}
+\newcommand{\thesisMyName}{Cosmina Simona Simionescu}
+\newcommand{\thesisSubjectName}{Computer Science}
+\newcommand{\thesisDepartmentName}{Department of Computer Science}
+
+\newcommand{\logo}{
+  \vspace{10mm}
+  \includegraphics[width=6cm]{exeter.png}
+  \vspace{10mm}
+}
+
+\newcommand{\statement}{
+\vspace{2mm}
+\begin{flushleft}
+\small\onehalfspacing\normalsize
+Submitted by \thesisMyName, to the University of Exeter as a thesis for the
+degree of Doctor of Philosophy in \thesisSubjectName, \thesisDate.
+\par\medskip
+This thesis is available for Library use on the understanding that it is
+copyright material and that no quotation from the thesis may be published
+without proper acknowledgement.
+\par\medskip
+I certify that all material in this thesis which is not my own work has been
+identified and that any material that has previously been submitted and
+approved for the award of a degree by this or any other University has been
+acknowledged.
+\par\medskip
+\textbf{Generative AI statement:}
+I confirm that I have used AI tool(s) responsibly in my work and that no content
+from generative AI has been presented as my own work. All generated content has
+been acknowledged in accordance with University of Exeter guidelines. A record
+of AI use is provided as an appendix.
+
+\par\bigskip
+Signed: \includegraphics[height=0.8cm]{signature.png}\\[-3pt]
+\end{flushleft}
+}
+
+\title{
+  \vspace{-30mm}
+  \begin{spacing}{1.0}
+    \huge\textbf{\thesisTitle}
+  \end{spacing}
+  \logo\\[-5mm]
+  \LARGE{\thesisMyName}\\
+  \large{\thesisDepartmentName\\University of Exeter}\\[8mm]
+  \statement
+}
+\author{}
+\date{}
+
+% =========================================================
+% Chapter heading style
+% =========================================================
+\makeatletter
+\def\@makechapterhead#1{%
+  \vspace*{40\p@}%
+  {\parindent \z@ \raggedright \normalfont
+    \interlinepenalty\@M
+    \Huge \bfseries
+    \ifnum \c@secnumdepth >\m@ne
+      \thechapter.\nobreakspace
+    \fi
+    #1\par\nobreak
+    \vskip 40\p@
+  }}
+\makeatother
+
+% =========================================================
+% Blank page helper
+% =========================================================
+\newcommand\blankpage{
+  \null
+  \thispagestyle{empty}
+  \addtocounter{page}{-1}
+  \newpage
+}
+% =========================================================
+% Document
+% =========================================================
+
+\begin{document}
+
+% ---------- Front matter ----------
+\frontmatter
+\maketitle
+\cleardoublepage
+% \pagenumbering{arabic}
+% \setcounter{page}{1}
+\include{ch0/abstract}
+\cleardoublepage
+\input{ch0/acknowledgements}
+
+\addcontentsline{toc}{chapter}{List of Publications}
+\input{ch0/publication}
+
+
+
+\tableofcontents
+\listoffigures
+\listoftables
+\listofalgorithms
+
+\include{frontmatter/notation}
+\glsaddall[types=\acronymtype]
+\printglossary[type=\acronymtype, title={List of Abbreviations}, toctitle={List of Abbreviations}]
+
+% Optional: print terms glossary too (uncomment if you want it)
+% \printglossary[title={Glossary of Terms}, toctitle={Glossary of Terms}]
+
+\afterpage{\blankpage}
+
+% ---------- Main matter ----------
+\mainmatter
+
+
+% IMPORTANT: remove this (it was likely causing duplicated lists)
+\include{ch-1/glossary}
+
+% \include{ch1/introduction}
+% \include{ch2/ch2_1}
+% \include{ch3/ch3}
+% \include{ch4/ch4}
+% \include{ch5/ch5}
+% \include{ch6/ch6}
+% \include{ch7/ch7}
+\include{ch8/summaryconclusion}
+
+
+% ---------- Bibliography ----------
+\emergencystretch=1em
+\printbibliography
+
+% ---------- Appendices ----------
+\appendix
+% \include{appendices/app_ch3}
+% \include{appendices/app_ch4}
+% \include{appendices/app_ch5}
+\include{appendices/app_ai_use}
+
+% \include{appendix}
+\end{document}

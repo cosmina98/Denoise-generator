@@ -1,0 +1,164 @@
+\cleardoublepage
+\chapter*{List of Notation}
+\addcontentsline{toc}{chapter}{List of Notation}
+
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.00}
+\setlength{\extrarowheight}{0pt}
+
+% left column width
+\newcolumntype{L}{>{\raggedright\arraybackslash}p{0.28\textwidth}}
+
+% section header row
+\newcommand{\notsec}[1]{%
+  \addlinespace[0.35em]
+  \multicolumn{2}{@{}l@{}}{\textbf{#1}}\\[-0.2em]
+  \midrule
+}
+
+\begin{tabularx}{\textwidth}{@{}L X@{}}
+\toprule
+
+\notsec{Graphs and matrices}
+$G=(V,E)$ & Graph with node set $V$ and edge set $E$ \\
+$V$ & Set of vertices (nodes), $V=\{v_1,\dots,v_n\}$ \\
+$E$ & Set of edges (undirected: $\{u,v\}$; directed: $(u,v)$) \\
+$n$ & Number of nodes in a graph ($n=|V|$) \\
+$m$ & Number of edges in a graph ($m=|E|$) \\
+$A \in \mathbb{R}^{n\times n}$ & Adjacency matrix ($A_{ij}=1$ if $(v_i,v_j)\in E$, else $0$; in weighted graphs, $A_{ij}$ stores the edge weight, while neighbourhoods are defined by edge incidence unless stated otherwise) \\
+$D \in \mathbb{R}^{n\times n}$ & Degree matrix (diagonal with $D_{ii}=\sum_j A_{ij}$) \\
+$L$ & (Unnormalised) graph Laplacian ($L=D-A$) \\
+$L_{\mathrm{sym}}$ & Symmetric normalised Laplacian ($L_{\mathrm{sym}}=I-D^{-1/2}AD^{-1/2}$, when defined) \\
+$d(u,v)$ & Shortest-path distance between nodes $u$ and $v$ \\
+$\mathcal{N}(v)$ & 1-hop neighbourhood of $v$ ($\mathcal{N}(v)=\{u\in V:(u,v)\in E\}$) \\
+$N_r(v)$ & $r$-hop neighbourhood vertex set of $v$ ($N_r(v)=\{u\in V:d(u,v)\le r\}$); when used as a feature component, it denotes the rooted induced subgraph on this set \\
+$\deg(v)$ & Degree of node $v$ ($\deg(v)=|\mathcal{N}(v)|$) \\
+$\deg^*$ & Maximum degree of $G$ ($\deg^*=\max_{v\in V}\deg(v)$) \\
+$G[S]$ & Subgraph of $G$ induced by the vertex subset $S\subseteq V$ \\
+
+\notsec{Attributes and representations}
+$d_x$ & Dimension of node attributes \\
+$d_e$ & Dimension of edge attributes \\
+$x_v \in \mathbb{R}^{d_x}$ & Node attribute (feature vector) of node $v$ \\
+$X \in \mathbb{R}^{n \times d_x}$ & Node-attribute matrix (row $i$ is $x_{v_i}^{\top}$) \\
+$e_{uv} \in \mathbb{R}^{d_e}$ & Edge attribute (feature vector) on edge $(u,v)$, if present \\
+$\phi:\mathcal{G}\to\mathbb{R}^d$ & Graph-to-vector representation map (explicit or learned) \\
+$z=\phi(G)\in\mathbb{R}^d$ & Graph embedding of $G$ \\
+
+\notsec{Permutation symmetry}
+$\pi$ & Permutation of $\{1,\dots,n\}$ (vertex relabeling) \\
+$P_\pi \in \{0,1\}^{n\times n}$ & Permutation matrix corresponding to $\pi$ \\
+$A^\pi$ & Relabelled adjacency: $A^\pi = P_\pi A P_\pi^\top$ \\
+$X^\pi$ & Relabelled node features: $X^\pi = P_\pi X$ \\
+
+\notsec{Kernels and RKHS}
+$k(\cdot,\cdot)$ & Kernel (similarity) function \\
+$\phi_k(\cdot)$ & Kernel feature map ($k(x,x')=\langle \phi_k(x),\phi_k(x')\rangle_{\mathcal{H}_k}$) \\
+$\mathcal{H}_k$ & Reproducing kernel Hilbert space (RKHS) associated with kernel $k$ \\
+$K \in \mathbb{R}^{N\times N}$ & Gram (kernel) matrix with $K_{ij}=k(x_i,x_j)$ \\
+
+\notsec{NSPPK feature construction}
+$U(u,v)$ & Subgraph induced by the union of all shortest paths between anchor nodes $u$ and $v$ \\
+$C_{r'}(u,v)$ & Connector subgraph obtained by expanding $U(u,v)$ by radius $r'$ \\
+$b$ & Number of hash bits used in feature hashing \\
+$M=2^b$ & Number of hash buckets in the finite hash codomain \\
+$H_b(\cdot)$ & $b$-bit base hash function \\
+$H^q(\cdot)$ & Sequence hash for ordered tuples \\
+$H^t(\cdot)$ & Multiset hash for unordered collections \\
+$f_G^\theta$ & Sparse NSPPK feature-count vector for graph $G$ with parameters $\theta$ \\
+$\theta=(R,D,R')$ &
+NSPPK feature-extraction parameters: maximum anchor-neighbourhood radius,
+maximum anchor distance, and maximum connector radius \\
+
+\notsec{GNNs: message passing and readout}
+$\ell$ & Layer index (for neural networks / GNNs) \\
+$L_{\mathrm{GNN}}$ & Number of GNN layers \\
+$\mathbf{h}_v^{(\ell)}$ & Hidden state (embedding) of node $v$ at layer $\ell$ \\
+$\mathbf{m}_v^{(\ell)}$ & Aggregated message for node $v$ at layer $\ell$ \\
+$\psi^{(\ell)}(\cdot)$ & Message function at layer $\ell$ \\
+$\phi^{(\ell)}(\cdot)$ & Update function at layer $\ell$ \\
+$\mathrm{AGG}^{(\ell)}(\cdot)$ & Permutation-invariant aggregation (sum/mean/max/attention) \\
+$\mathrm{READOUT}(\cdot)$ & Permutation-invariant pooling/readout to obtain a graph embedding \\
+$\mathbf{z}_G$ & Graph-level embedding produced by readout \\
+
+\notsec{Graph Transformers}
+$X\in\mathbb{R}^{n\times d}$ & Input token/node embedding matrix to attention \\
+$\mathbf{Q},\mathbf{K},\mathbf{V}$ & Query/key/value projections \\
+$\mathbf{a}_{ij}$ & Attention weight from token $i$ to token $j$ \\
+$H$ & Number of attention heads \\
+
+\notsec{Diffusion models}
+$x_0$ & Clean data sample (e.g., graph representation) \\
+$x_t$ & Noised latent variable at diffusion step $t$ \\
+$T$ & Total number of diffusion steps \\
+$\beta_t$ & Forward noise schedule parameter at step $t$ \\
+$\alpha_t$ & $\alpha_t=1-\beta_t$ \\
+$\bar{\alpha}_t$ & Cumulative product $\bar{\alpha}_t=\prod_{s=1}^t \alpha_s$ \\
+$\varepsilon$ & Standard Gaussian noise, $\varepsilon\sim\mathcal{N}(0,I)$ \\
+$\varepsilon_\theta(x_t,t)$ & Neural noise predictor (denoiser) \\
+$p_\theta(x_{t-1}\mid x_t)$ & Learned reverse transition kernel \\
+$q(x_t\mid x_{t-1})$ & Forward noising transition kernel \\
+
+\notsec{Graph-conditioned denoising generator}
+$N_{\max}$ & Maximum number of node rows in the padded node-feature matrix \\
+$K_V=|\mathcal{T}_V|$ & Number of node-label classes \\
+$\tau_V,\tau_E$ & Node-label and edge-label functions, respectively \\
+$C\in\mathbb{R}^{d_C}$ & Graph-level condition vector supplied to the generator \\
+$d_C$ & Dimension of the graph-level condition vector \\
+$r_i\in\mathbb{R}^{d_r}$ & Node-level structural representation for node row $i$ \\
+$d_r$ & Dimension of the node-level structural representation \\
+$m_i$ & Node-existence indicator for row $i$ \\
+$g_i$ & Degree component or degree class associated with row $i$ \\
+$q_i$ & One-hot node-label vector for row $i$ \\
+$d_{\mathrm{feat}}$ & Dimension of each node-feature row \\
+$X_0$ & Clean padded node-feature matrix \\
+$X_t$ & Noisy node-feature matrix at noise level or diffusion time $t$ \\
+$\sigma(t)$ & Noise scale at time $t$ \\
+$\Gamma(t)$ & Feature-wise noise-scale matrix used in the corruption process \\
+$Z$ & Node-latent matrix produced by the conditional denoising network \\
+$z_i$ & Latent representation of node row $i$ \\
+$B_{\mathrm{match}}$ & Feature mask used in matched-row training loss \\
+$\pi^\star$ & Minimum-cost row assignment used for matched-row loss \\
+$P^{\mathrm{edge}}$ & Predicted edge-probability matrix passed to the graph decoder \\
+$A_t^{\mathrm{state}}$ & Provisional edge-state matrix used by the joint edge-state variant \\
+
+\notsec{Learning theory and evaluation}
+$\mathcal{X},\mathcal{Y}$ & Input and label spaces \\
+$P$ & Data-generating distribution over $\mathcal{X}\times\mathcal{Y}$ \\
+$S$ & Finite sample drawn i.i.d.\ from $P$ \\
+$N_{\mathrm{sample}}$ & Sample size in learning-theory or evaluation contexts \\
+$\mathcal{H}$ & Hypothesis class (models/predictors) \\
+$h\in\mathcal{H}$ & Hypothesis/model \\
+$\ell(\cdot,\cdot)$ & Loss function \\
+$R_P(h)$ & Population risk (expected loss) under $P$ \\
+$\widehat{R}_S(h)$ & Empirical risk on sample $S$ \\
+$\delta$ & Confidence parameter in PAC bounds \\
+$\epsilon_{\mathrm{PAC}}$ & Accuracy or estimation-error parameter in PAC-style bounds \\
+$\mathfrak{R}_S(\mathcal{H})$ & Empirical Rademacher complexity \\
+$d_{\mathrm{VC}}$ & VC dimension (binary classification) \\
+$P,Q$ & Distributions over inputs (e.g., real vs.\ generated) \\
+$\mathrm{disc}_{\mathcal{H}\Delta\mathcal{H}}(P,Q)$ & Discrepancy between $P$ and $Q$ with respect to $\mathcal{H}\Delta\mathcal{H}$ \\
+$\lambda(P,Q)$ & Joint optimal risk term in domain adaptation bounds \\
+$\mathrm{MMD}(\mathcal{X},\mathcal{Y})$ & Maximum Mean Discrepancy between sample sets $\mathcal{X}$ and $\mathcal{Y}$ \\
+$\rho_i$ & Classifier-based evaluation metric (defined in Chapter~\ref{ch:rankgen}) \\
+
+\notsec{RankGen evaluation}
+$D_{\text{train1}}^{(i)}$ & Real training subset used for the baseline classifier on split $i$ \\
+$D_{\text{train2}}^{(i)}$ & Additional real training subset used for the upper-bound classifier on split $i$ \\
+$D_{\text{generated}}^{(i)}$ & Generated dataset used on split $i$ \\
+$D_{\text{test}}$ & Held-out real test set used for evaluation \\
+$\Phi_\theta$ & Task classifier used in classifier-based evaluation probes \\
+$\Psi_\theta$ & Binary discriminator for real-versus-generated evaluation \\
+$\Gamma_\theta$ & Similarity or neighbourhood-mixing probe used in RankGen \\
+$\rho_1,\ldots,\rho_6$ & Raw classifier-derived scores used to define RankGen metrics \\
+$Q^{(i)}$ & Quality score on split $i$ \\
+$U^{(i)}$ & Utility score on split $i$ \\
+$I^{(i)}$ & Indistinguishability score on split $i$ \\
+$S^{(i)}$ & Similarity score on split $i$ \\
+$\mathcal{E}_{\min}^{(i)}$ & Exchangeability score on split $i$ \\
+
+\bottomrule
+\end{tabularx}
+
+\normalsize

@@ -1,4 +1,4 @@
-\chapter{Graph-Conditioned Denoising Generator}
+\chapter{Graph-Conditioned Diffusion Generator}
 \label{ch:generator}
 
 \section{Chapter Introduction and Design Rationale}
@@ -10,81 +10,37 @@ diffusion and score-based generative models provide stable denoising objectives
 permutation-sensitive, and subject to structural constraints
 \citep{you2018graphrnn,niu2020permutation,vignac2022digress}. This chapter
 addresses that difficulty by introducing the
-\emph{Graph-Conditioned Denoising Generator} (GCDG), the generator used in this
+\emph{Graph-Conditioned Diffusion Generator} (GCDG), the generator used in this
 thesis.
 
-GCDG separates two roles that are often coupled in graph generators: modelling
-node-level feature vectors with a conditional diffusion process, and
-constructing the final discrete graph. The diffusion process is guided by a
-graph-level condition vector \(C\). The final graph is then obtained from
-node-level predictions, edge predictions, and an explicit constraint-aware
-decoding step.
+GCDG separates continuous diffusion from discrete graph construction. A
+conditional diffusion process is applied to padded node-level feature matrices,
+while node existence, labels, degrees, pairwise edges, and edge labels are
+predicted by dedicated modules before a constraint-aware decoder selects the
+final graph. Throughout this chapter,
+\emph{diffusion} refers to the forward corruption and reverse noise-removal
+process over node-level features, while \emph{denoising} refers to the learned
+prediction task performed inside that process.
 
-Throughout this chapter, \emph{diffusion} refers to the forward corruption and
-reverse noise-removal process over node-level feature matrices, while
-\emph{denoising} refers to the learned prediction task performed by the neural
-network inside that process.
-
-This separation is useful in the setting of this thesis because the condition is
-defined at the graph level, whereas the output is a variable-size graph with
-node labels, edge labels, degree constraints, and, in some datasets, additional
-domain constraints. The role of \(C\) is to provide global information to the
-conditional diffusion process, while the construction of nodes, edges, and
-labels is handled by subsequent prediction and decoding stages.
-
-In this thesis, \(C\) is instantiated using the \gls{nsppk} graph-level feature
-map introduced in Chapter~\ref{ch:nsppk}. This connects the generator to the
-representation method developed earlier in the thesis: neighbourhood,
-shortest-path, and connector-based structural information are used not only for
-graph representation, but also as the conditioning signal for graph generation.
-More generally, the architecture requires only a fixed-dimensional graph-level
-vector, so other explicit graph descriptors, graph kernels, or learned
-graph-level embeddings could be substituted
+The conditioning signal is a fixed graph-level vector \(C\). In this thesis,
+\(C\) is instantiated using the \gls{nsppk} feature map introduced in
+Chapter~\ref{ch:nsppk}, so neighbourhood, shortest-path, connector, and
+attribute information can guide generation. The architecture itself only
+requires a fixed-dimensional graph descriptor; other explicit graph descriptors,
+graph kernels, or learned graph-level embeddings could therefore be substituted
 \citep{costa2010fast,neumann2016propagation,borgwardt2020graphkernels,
-hamilton2017graphsage,zhang2018endtoend,dwivedi2021graph}. Generation is
-therefore treated as conditional graph construction guided by graph-level
-condition information.
+hamilton2017graphsage,zhang2018endtoend,dwivedi2021graph}.
 
-This is a conditional generation setting rather than an unconditional sampling
-setting. When \(C\) is computed from a reference graph, the generator is not
-given the reference graph itself and is not trained to reproduce that graph by
-identity. It receives only the graph-level vector \(C\). A generated graph may
-be compared with the reference graph from which \(C\) was computed, but the
-target is not exact reconstruction of the reference adjacency matrix. Rather,
-the aim is to generate a graph that preserves the structural and label
-information encoded by the condition.
-
-This distinction separates GCDG from graph autoencoders and variational graph
-autoencoders, which map a specific input graph to a sample-specific latent code
-and then decode from that code
-\citep{kipf2016vgae,simonovsky2018graphvae}. GCDG instead uses externally
-computed graph-level condition information to guide generation. Since \(C\) can
-be computed for graphs that were not present during training, the evaluation can
-use unseen condition vectors.
-
-The design is also distinct from direct graph diffusion. Continuous score-based
-graph generators add noise to real-valued node features and continuous
-adjacency representations \citep{niu2020permutation,jo2022score}. Discrete graph
-diffusion models, such as DiGress, define categorical transitions over node and
-edge states \citep{vignac2022digress}. GCDG adopts a different design: it uses a
-conditional diffusion process for node-level feature generation, but leaves the
-construction of the discrete graph topology to edge prediction and
-constraint-aware decoding.
-
-The resulting intermediate quantities are inspectable: node-existence
-probabilities, degree predictions, node-label predictions, edge probabilities,
-edge-label predictions, and decoder outputs can be examined before the final
-graph is produced. Properties such as requested cycle size, degree consistency,
-connectivity, and label validity are then evaluated on the final
-generated graph.
-
-The rest of this chapter develops this staged generator in detail. It defines
-the node-level representation, graph-level condition, diffusion architecture,
-training objective, sampling procedure, and constraint-aware graph decoder.
-
-\section{Method Overview and Representations}
-\label{sec:generator:method-overview}
-
+The setting considered here is graph-level-descriptor-to-graph generation. This
+differs from unconditional generation, class-conditional generation, and
+property-conditional generation, where the condition is often a class label or a
+small set of scalar targets. It also differs from graph autoencoders and
+variational graph autoencoders, which encode a specific input graph into a
+sample-specific latent code before decoding it
+\citep{kipf2016vgae,simonovsky2018graphvae}. GCDG receives only \(C\): when the
+condition is computed from a reference graph, the target is not to reconstruct
+that graph exactly, but to generate a graph that preserves information encoded
+by the condition.
 \begin{figure}[H]
     \centering
     \makebox[\textwidth][c]{%
@@ -111,6 +67,25 @@ training objective, sampling procedure, and constraint-aware graph decoder.
     }
     \label{fig:generator:overview}
 \end{figure}
+
+The central contribution of this chapter is therefore the
+graph-level-to-node-and-edge-level formulation. The model must translate a global structural
+descriptor into the quantities needed to build a discrete graph: which nodes
+exist, which labels and degrees they have, and which pairwise edges should be
+selected. This is also distinct from direct graph diffusion models such as
+DiGress, where the reverse process operates on categorical node and edge states
+\citep{vignac2022digress}. In GCDG, the diffusion process acts on node-level
+features, and graph topology is constructed through pairwise prediction and
+constraint-aware decoding.
+
+The rest of this chapter develops this staged generator in detail. It defines
+the node-level representation, graph-level condition, diffusion architecture,
+training objective, sampling procedure, and constraint-aware graph decoder.
+
+
+\section{Method Overview and Representations}
+\label{sec:generator:method-overview}
+
 
 \subsection{Node-Level Feature Representation and Graph-Level Conditions}
 \label{sec:generator:representation}
@@ -192,8 +167,16 @@ vector for each node \(v_i\in V\):
     \in
     \mathbb{R}^{d_r},
 \]
-
-where \(d_r\) is the dimension of the node-level structural representation. At
+Let $\mathcal{F}_i(G)$ denote the set of NSPPK feature occurrences assigned to
+node $v_i$. The node-level structural representation is defined as
+\[
+r_i
+=
+\sum_{\xi\in\mathcal{F}_i(G)}
+e_{h(\xi)}.
+\]
+where $h(\xi)$ is the hash bucket assigned to feature occurrence $\xi$ and
+$e_{h(\xi)}$ is the corresponding standard basis vector.  At
 a high level, \(r_i\) describes the labelled local structural context of node
 \(v_i\), including the root-node label, labels of neighbouring nodes and
 incident edges, rooted neighbourhood patterns over selected radii, and
@@ -206,17 +189,34 @@ The generator represents graphs with at most \(N_{\max}\) nodes, where
 node row \(i\in\{1,\ldots,N_{\max}\}\), the row of the node feature matrix is
 
 \[
-    x_i =
-    \left[
-        m_i,\,
-        g_i,\,
-        q_i^{(1)}, \ldots, q_i^{(K_V)},\,
-        r_i
-    \right],
+x_i
+=
+\left[
+m_i;\,
+g_i;\,
+q_i;\,
+r_i
+\right]
+\in\mathbb{R}^{d_{\mathrm{feat}}},
 \]
 
-where \(m_i\in\{0,1\}\) is the node-existence indicator, \(g_i=\deg(v_i)\) is
-the node degree when the row corresponds to a real node, and
+Here $m_i\in\{0,1\}$ is the node-existence indicator and
+\[
+g_i=\deg(v_i)
+\]
+is the degree of node $v_i$ when row $i$ represents a real node. Before being
+supplied to the denoising network, the degree coordinate is transformed using
+the fitted node-feature scaler. For the auxiliary degree-prediction task, the
+unscaled integer degree is treated as a categorical target in
+\[
+\{0,\ldots,D_{\max}\},
+\]
+where $D_{\max}$ is the maximum degree supported by the fitted model. The
+degree-prediction head therefore has $D_{\max}+1$ output classes.
+
+If degrees are clipped or grouped, the corresponding mapping is
+defined by the experimental configuration.
+
 \[
     q_i
     =
@@ -249,24 +249,34 @@ Let \(N_{\max}\) denote the fixed row budget used for padding, chosen to cover
 the largest graphs considered in a given experiment. The feature vectors are
 stacked and padded to form the clean node feature matrix
 \[
-    X_0
-    =
-    \begin{bmatrix}
-        x_1^\top\\
-        \vdots\\
-        x_n^\top\\
-        x_{n+1}^\top\\
-        \vdots\\
-        x_{N_{\max}}^\top
-    \end{bmatrix}
-    \in
-    \mathbb{R}^{N_{\max}\times d_{\mathrm{feat}}}.
+X_0
+=
+\begin{bmatrix}
+x_1^\top\\
+\vdots\\
+x_n^\top\\
+x_{n+1}^\top\\
+\vdots\\
+x_{N_{\max}}^\top
+\end{bmatrix}
+\in
+\mathbb{R}^{N_{\max}\times d_{\mathrm{feat}}}.
 \]
-For a graph containing \(n<N_{\max}\) nodes, rows \(i>n\) correspond to padding
-rather than to real graph nodes. In these rows, \(m_i=0\), while the remaining
-feature components are set to fixed padding values and masked during training.
-Consequently, padded rows do not contribute to the denoising objective or to
-the subsequent graph decoder.
+
+
+For a graph containing $n<N_{\max}$ nodes, rows $i>n$ represent padding rather
+than real graph nodes. In these rows, $m_i=0$, while the remaining feature
+components are assigned fixed padding values. Loss terms for degree, node
+label, continuous reconstruction, and supervised node pairs use the existence
+mask to exclude non-existent rows.
+
+In the current implementation, padded rows remain present as transformer
+tokens and are not removed by an attention padding mask. They may therefore
+participate in intermediate self-attention computations, although they are
+excluded from the masked training targets and from final graph decoding. This
+fixed-row representation is retained consistently during training and
+sampling.
+
 
 Before the denoising model is trained, the continuous coordinates of the node
 feature matrix are placed on a common numerical scale. The scaler is fitted on
@@ -290,13 +300,13 @@ The matching step is a linear assignment problem. Given a predicted clean node
 feature matrix \(\hat X_0\) and a target matrix \(X_0\), define a pairwise cost
 between predicted row \(i\) and target row \(j\),
 \[
-    c_{ij}
-    =
-    \left\|
-        B_{\mathrm{match}}
-        \odot
-        (\hat{x}_{0,i}-x_{0,j})
-    \right\|_2^2,
+c_{ij}
+=
+\left\|
+B_{\mathrm{match}}
+\odot
+(\hat{x}_{0,i}-x_{0,j})
+\right\|_2^2.
 \]
 where \(B_{\mathrm{match}}\) selects the continuous structural coordinates used
 for matching. The matched target order is obtained by finding the permutation
@@ -315,7 +325,11 @@ the categorical prediction losses cannot choose an artificially favourable
 alignment. The assignment itself is not a learned neural module and is not part
 of sampling. It is a training alignment step: after \(\pi^\star\) is selected,
 the usual losses compare the prediction with the permuted target rows.
-
+The assignment is performed over the complete padded row set. Because the
+existence component is excluded from the matching cost, the assignment does
+not explicitly prevent a predicted real-node row from being matched to a
+padded target row. The separate existence and categorical losses provide the
+corresponding supervision.
 The node feature matrix captures node existence, degree, node labels, and
 node-level structural context. It does not directly specify the final adjacency
 matrix.
@@ -376,7 +390,7 @@ leaving a well-defined classification target for the reverse model.
 \section{Conditional Denoising Architecture}
 \label{sec:generator:architecture}
 
-The diffusion network is implemented as a transformer over the node-feature
+The denoising network is implemented as a transformer over the node-feature
 matrix. This choice follows the use of
 attention mechanisms in graph representation learning and graph generation,
 where interactions between many possible node pairs must be represented without
@@ -384,9 +398,14 @@ committing to a sequential node ordering
 \citep{vaswani2017attention,dwivedi2021graph,ying2021transformers,
 rampavsek2022recipe,vignac2022digress}. In this chapter, each row of
 \(X_t\) is treated as a node token. Because the same projections are applied to
-all node rows and no order-specific positional encoding is attached to the
-nodes, permuting the rows of \(X_t\) permutes the resulting node latents in the
-same way. The noisy node feature matrix is first normalised and projected to
+all node rows and no order-specific positional encoding is used, the
+transformer is equivariant to permutations of the complete padded row set:
+permuting the rows of \(X_t\) permutes the resulting node latents in the same
+way. The current
+implementation does not apply an attention padding mask, so padded rows remain
+part of the intermediate self-attention computation.
+
+The noisy node feature matrix is first normalised and projected to
 latent tokens:
 
 \[
@@ -441,31 +460,44 @@ continuous prediction module estimates the Gaussian noise
 predicts node existence. Two categorical classifiers predict the degree class
 and the node-label class. Edges are not represented as cross-attention tokens;
 instead, edge existence is predicted pairwise from the two endpoint latents.
-Let \(z_i\in\mathbb{R}^{d_Z}\) denote the \(i\)-th row of \(Z\), corresponding
-to the latent representation of node row \(i\). For a candidate unordered pair
-\(\{i,j\}\), the edge-existence classifier computes an edge logit
-\(s^{\mathrm{edge}}_{ij}\) and an edge probability
-\(p^{\mathrm{edge}}_{ij}\):
 
+Let $z_i\in\mathbb{R}^{d_Z}$ denote the $i$th row of $Z$. For an ordered
+candidate pair $(i,j)$, the edge-existence head computes the biaffine logit
 \[
-    s^{\mathrm{edge}}_{ij}
-    =
-    z_i^\top B_{\mathrm{edge}} z_j
-    +
-    a_{\mathrm{edge}}^\top [z_i;z_j]
-    +
-    b_{\mathrm{edge}},
-    \qquad
-    p^{\mathrm{edge}}_{ij}
-    =
-    \operatorname{sigmoid}(s^{\mathrm{edge}}_{ij}).
+s_{ij}^{\mathrm{edge}}
+=
+z_i^{\top}B_{\mathrm{edge}}z_j
++
+a_{\mathrm{edge}}^{\top}[z_i;z_j]
++
+b_{\mathrm{edge}},
 \]
+followed by
+\[
+p_{ij}^{\mathrm{edge}}
+=
+\operatorname{sigmoid}
+\left(
+s_{ij}^{\mathrm{edge}}
+\right).
+\]
+Here
+\[
+B_{\mathrm{edge}}\in\mathbb{R}^{d_Z\times d_Z},
+\qquad
+a_{\mathrm{edge}}\in\mathbb{R}^{2d_Z},
+\qquad
+b_{\mathrm{edge}}\in\mathbb{R}
+\]
+are learned parameters, and $[z_i;z_j]$ denotes vector concatenation.
 
-Here \(B_{\mathrm{edge}}\in\mathbb{R}^{d_Z\times d_Z}\),
-\(a_{\mathrm{edge}}\in\mathbb{R}^{2d_Z}\), and
-\(b_{\mathrm{edge}}\in\mathbb{R}\) are learned parameters, and
-\([z_i;z_j]\) denotes vector concatenation. The function
-\(\operatorname{sigmoid}\) is the logistic sigmoid. When edge labels are available, a
+The raw biaffine score need not be invariant to exchanging $i$ and $j$.
+For undirected generation, the implementation forms a dense probability
+matrix, averages it with its transpose, and sets its diagonal to zero before
+using it as the undirected edge-probability matrix.
+
+ 
+ When edge labels are available, a
 second pairwise classifier predicts a distribution
 \(p^{\tau_E}_{ij}\in\Delta^{|\mathcal{T}_E|-1}\) over the edge-label classes
 for each supervised pair, where \(\Delta^{K-1}\) denotes the probability
@@ -480,8 +512,8 @@ decoder.
 \label{sec:generator:joint-edge-state}
 
 The base generator predicts edges from the final node latents and then passes
-the resulting probabilities to the decoder. A stronger variant makes edge
-information part of the reverse diffusion trajectory itself. The purpose is to let
+the resulting probabilities to the decoder. An optional joint edge-state variant makes edge information part of the reverse
+diffusion trajectory itself. The purpose is to let
 intermediate node representations depend not only on the current node feature
 matrix \(X_t\), but also on a provisional graph structure.
 
@@ -506,10 +538,23 @@ adjacency matrix. During training, an edge-state matrix
 deleted and false edges may be inserted, with corruption probabilities
 increasing with the noise level. This creates a noisy structural context for
 the denoiser. To make explicit how the provisional adjacency enters the latent
-representation, write \(H_t=[h_{t,1},\ldots,h_{t,N_{\max}}]\) for the node
-latents produced by the transformer before the edge-state update. The edge
-state is not concatenated as an additional feature column. Instead, it is used
-as a soft adjacency matrix that forms a neighbourhood summary for each node:
+representation, write
+\[
+H_t
+=
+\begin{bmatrix}
+h_{t,1}^{\top}\\
+\vdots\\
+h_{t,N_{\max}}^{\top}
+\end{bmatrix}
+\in
+\mathbb{R}^{N_{\max}\times d_Z}
+\]
+for the node latents produced by the transformer before the edge-state update.
+The edge state is not concatenated as an additional feature column. Instead,
+it is used as a soft adjacency matrix that forms a neighbourhood summary for
+each node.
+
 
 \[
     \bar h^{\mathrm{edge}}_{t,i}
@@ -581,6 +626,11 @@ matrix with entries \(p^{\mathrm{edge}}_{ij}\). At low noise levels, this state
 may be thresholded to obtain a sharper provisional adjacency. In this variant,
 edge information is not only a final output of the pairwise classifier; it is a
 state variable that can influence subsequent reverse diffusion steps.
+Both the initial edge state and the dense predicted edge-probability matrix are
+constructed symmetrically with zero diagonal. Their convex combination
+therefore remains symmetric and excludes self-loops. At sufficiently low noise
+levels, the resulting state may be thresholded.
+
 
 \begin{figure}[H]
     \centering
@@ -624,7 +674,7 @@ state variable that can influence subsequent reverse diffusion steps.
 \label{sec:generator:dynamic-molecular}
 
 The generator above is dataset-agnostic: node labels are treated as categorical
-attributes, not as chemical atom types. For molecular experiments, I also
+attributes, not as chemical atom types. For molecular experiments, we also
 consider a chemistry-aware extension that gives the denoiser access to simple
 state-dependent molecular summaries. This is motivated by the fact that
 chemical validity depends on relationships between atom identity and incident
@@ -717,32 +767,49 @@ existence mask and \(\hat m\) denotes the predicted existence logits:
 Here \(\operatorname{BCEWithLogits}\) denotes binary cross-entropy applied
 directly to logits.
 
-Degree and node-label attributes are trained using cross-entropy over existing
-nodes, where \(g\) and \(q\) are the true degree and node-label classes and
-\(\hat g\) and \(\hat q\) are the corresponding predicted logits:
-
-\[
-    \mathcal{L}_{\mathrm{deg}}
-    =
-    \operatorname{CE}(\hat{g}, g),
-    \qquad
-    \mathcal{L}_{\tau_V}
-    =
-    \operatorname{CE}(\hat{q}, q).
-\]
-
-Here \(\operatorname{CE}\) denotes categorical cross-entropy.
+Degree and node-label attributes are trained using masked cross-entropy over
+existing node rows. Let \(g_i\) and \(q_i\) denote the true degree and
+node-label classes, and let \(\hat g_i\) and \(\hat q_i\) denote the
+corresponding predicted logits.
 
 When edge supervision is enabled, sampled node pairs are used to train the
 biaffine edge head. Here \(A_{ij}\) is the true binary edge indicator and
 \(\hat A_{ij}\) denotes the predicted edge logit:
 
+Let $\mathcal{P}_{\mathrm{sup}}$ denote the set of supervised unordered node
+pairs. Then
 \[
-    \mathcal{L}_{\mathrm{edge}}
-    =
-    \operatorname{BCEWithLogits}(\hat{A}_{ij}, A_{ij}).
+\mathcal{L}_{\mathrm{edge}}
+=
+\frac{1}{|\mathcal{P}_{\mathrm{sup}}|}
+\sum_{\{i,j\}\in\mathcal{P}_{\mathrm{sup}}}
+w_{ij}\,
+\operatorname{BCEWithLogits}
+\left(
+s^{\mathrm{edge}}_{ij},
+A_{ij}
+\right),
 \]
-
+where $w_{ij}$ optionally balances edge and non-edge examples. Pairs involving
+padded rows are excluded.
+Both categorical losses are evaluated only over real node rows:
+\[
+\mathcal{L}_{\mathrm{deg}}
+=
+\frac{1}{\sum_i m_i}
+\sum_i
+m_i\,
+\operatorname{CE}(\hat g_i,g_i),
+\]
+and
+\[
+\mathcal{L}_{\tau_V}
+=
+\frac{1}{\sum_i m_i}
+\sum_i
+m_i\,
+\operatorname{CE}(\hat q_i,q_i).
+\]
 If edge labels are present, the edge-label term is a categorical
 cross-entropy over supervised node pairs and is denoted
 \(\mathcal{L}_{\tau_E}\). Optional distance supervision gives
@@ -1017,11 +1084,11 @@ latent graph decoder baseline, but it receives only the requested class and not
 the full graph-level descriptor. The proposed generator tests the intermediate
 position: condition-guided diffusion over node-level representations followed
 by learned pairwise prediction and constrained graph decoding. The advantage of
-this staged design is inspectability: node counts, degree histograms,
-label histograms, edge probability matrices, and decoder outputs can be
-examined separately. The cost is that final graph quality depends jointly on
-the condition representation, the denoiser, and the decoder. Implementation
-settings and ablation parameters are therefore tabulated separately in
+this staged design is that node counts, degree histograms, label histograms,
+edge probability matrices, and decoder outputs can be examined separately. The
+cost is that final graph quality depends jointly on the condition
+representation, the denoiser, and the decoder. Implementation settings and
+ablation parameters are therefore tabulated separately in
 Appendix~\ref{app:generator-parameters}.
 
 \section{Experimental Evaluation}
@@ -1053,7 +1120,7 @@ nodes. Node labels distinguish cycle roles from attachment roles, so the task is
 not only to produce a cycle of the correct length, but also to place the labels
 consistently with the generated structure.
 
-The training set contains \(3000\) graphs for each requested cycle size, giving
+The training set contains \(3{,}000\) graphs for each requested cycle size, giving
 \(18{,}000\) training graphs in total. The evaluation set contains \(100\)
 held-out reference graphs per requested cycle size, giving \(600\) graph-level
 conditions. Each condition is the graph-level encoding of one held-out reference
@@ -1204,7 +1271,7 @@ condition-versus-re-encoding scatter plots.
     ]{images/diffusion/example_generated_my_generator.png}
     \caption{
     RDKit visualisations of QM9-like molecules generated by the proposed
-    graph-conditioned denoising generator from held-out
+    graph-conditioned diffusion generator from held-out
     graph-level molecular conditions. These examples are qualitative samples;
     aggregate distributional comparisons are reported separately.
     }
@@ -1274,21 +1341,25 @@ ablations but are not part of the generic graph generator.
 
 Finally, the model is conditional on a graph-level vector \(C\). Strong
 conditioning performance therefore depends on the informativeness and stability
-of this vector. In later experiments, this is evaluated by comparing generated
-graphs with their conditioning graphs using structural statistics, molecular
-properties, and vector-correlation analyses between \(C\) and the re-encoded
-generated graph \(\hat{C}\).
+of this vector. In the experiments, condition consistency is assessed through
+proxy comparisons with the held-out graphs that supplied the condition:
+structural statistics, molecular properties, and correlations between the
+condition vector \(C\) and the re-encoded generated graph \(\hat{C}\). These
+comparisons test whether the generated graph preserves information encoded in
+the condition, rather than whether it reconstructs the conditioning graph
+exactly.
 
 \section{Summary}
 \label{sec:generator:summary}
 
-This chapter introduced the Graph-Conditioned Denoising Generator, a
-conditional graph generator that uses graph-level vectors to guide the
-generation of node-level representations before constructing a discrete graph
-with learned pairwise predictions and a constraint-aware decoder. The central
-contribution is the staged design: continuous denoising is used where it is
-well behaved, while graph feasibility is handled when the final discrete
-structure is selected.
+This chapter introduced the Graph-Conditioned Diffusion Generator, a
+conditional graph generator that maps a fixed graph-level descriptor to a
+discrete labelled graph. The method separates the continuous reverse diffusion
+process over padded node features from the later decisions that determine node
+existence, node labels, degree classes, edge probabilities, and edge labels.
+The final graph is obtained by a constraint-aware decoder, so graph feasibility
+is handled explicitly rather than being left entirely to the neural denoising
+network.
 
 The synthetic cycle--leg experiment shows why this staging is useful. The model
 does not merely generate plausible graphs; it can be evaluated against explicit
@@ -1309,12 +1380,11 @@ matches some structural graph statistics closely, whereas the conditional
 DiGress-style model better matches molecular-size and chemistry-related
 descriptors such as atom count, molecular weight, and QED.
 
-Overall, the chapter establishes the generator and evaluation protocol used in
-the remainder of the thesis. The important point is not that every graph
-constraint is solved by the neural denoiser itself, but that conditioning,
-node-level denoising, pairwise prediction, and explicit graph decoding are made
-separable and inspectable. The next chapter builds on this need for
-inspectability by moving from generator design to model diagnosis: it develops
-the evaluation framework used to compare generated and real graph distributions
-more systematically, and to identify which structural or distributional
-properties are preserved or lost by a generative model.
+Overall, the chapter establishes GCDG as a graph-conditioned diffusion
+generator in which continuous node-feature generation and discrete graph
+construction are deliberately separated. The experiments show that this design
+can preserve explicit conditional structure in the synthetic setting, while the
+molecular setting exposes the additional difficulty of matching chemical and
+property-level constraints. These results motivate the next chapter, which
+turns from generator design to the broader problem of evaluating generated data
+with diagnostic, statistically grounded probes.

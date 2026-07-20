@@ -1,0 +1,51 @@
+\chapter*{Abstract}
+
+Graphs arise in many scientific and computational domains, ranging from social networks to biology and chemistry. Their
+irregular, non-Euclidean structure makes them expressive, but also difficult to
+represent, generate, and evaluate. This thesis develops robust and
+interpretable methods for graph representation, conditional graph generation,
+and statistically grounded evaluation of graph generative models.
+
+The first contribution is the Neighborhood Subgraph Pairwise Path Kernel
+(NSPPK), an explicit graph kernel for attributed graphs. NSPPK represents a
+graph using pairs of local subgraphs centred on selected anchor nodes, together
+with the graph regions that connect those anchors. The connector subgraphs are
+constructed from unions of shortest paths between the anchor nodes, allowing
+the kernel to capture both the structure surrounding each anchor and the
+structure linking different parts of the graph. NSPPK also incorporates
+continuous node attributes directly into its feature map, avoiding
+discretisation while preserving a sparse, deterministic, and interpretable
+representation. Experiments show that NSPPK performs competitively with
+established graph kernels and graph neural networks while offering strong
+sample efficiency and computational transparency.
+
+The second contribution is the Graph-Conditioned Diffusion Generator (GCDG), a
+conditional diffusion-based graph generator that uses graph-level feature
+vectors to guide the generation of node-level features before constructing a
+final discrete graph. Its central focus is the graph-level-to-node-level
+generation problem: translating a global graph descriptor into node existence,
+node labels, degree information, and pairwise edge structure. The model
+separates continuous diffusion-based denoising, node and edge prediction, and
+constraint-aware decoding. This design makes intermediate predictions
+inspectable and allows graph feasibility constraints to be enforced explicitly
+during decoding. Experiments on synthetic graph families and QM9-like molecular
+graphs show that conditional graph generation should be evaluated not only by
+the realism of the generated graphs, but also by how faithfully they preserve
+the information encoded in the conditioning vectors.
+
+The third contribution is RankGen, a statistically grounded framework for
+generative model evaluation. RankGen treats evaluation as a set of predictive
+probes rather than as a single scalar similarity score. It defines
+complementary metrics for Quality, Utility, Indistinguishability, and
+Similarity, combines them with PAC-style reliability bounds, and ranks
+generators using robust quantile-based summaries. Experiments across
+controlled perturbations, molecular graph generators, image benchmarks, and
+open-domain text generation demonstrate that RankGen can diagnose failure
+modes such as memorisation, mode collapse, poor augmentation value, and
+distributional mismatch.
+
+Together, these contributions support a unified view of graph generative
+modelling: reliable generation requires graph representations that expose
+meaningful structure, generative models whose outputs can be explicitly
+conditioned, and evaluation protocols that distinguish genuine task-relevant
+utility from superficial structural similarity.

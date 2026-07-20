@@ -1,0 +1,208 @@
+\chapter{Summary and Conclusion}
+\label{ch:conclusion}
+
+\section{Summary of Contributions}
+\label{sec:conclusion:summary}
+
+This thesis developed methods for representing, generating, and evaluating
+graphs. The work was motivated by a common difficulty across these tasks:
+graphs are irregular, permutation-sensitive, and often constrained by
+domain-specific validity requirements. A useful method must therefore preserve
+graph structure, remain inspectable where possible, and support reliable
+comparison when used inside a generative pipeline.
+The thesis made three main contributions.
+
+\textbf{NSPPK for interpretable graph representation.}
+The first contribution was the Neighborhood Subgraph Pairwise Path Kernel
+(NSPPK), an explicit graph-to-vector representation for node-attributed graphs. For
+each graph, NSPPK constructs a sparse feature vector by enumerating structural
+patterns around pairs of nodes. Each feature records the neighbourhoods around the nodes together with the shortest-path subgraph that connects them. In this way, the representation captures both local node-centred structure and the broader context linking different parts of the graph.
+Continuous node attributes are incorporated directly into these explicit
+features, avoiding discretisation while retaining deterministic, sparse, and
+interpretable feature construction.
+
+Empirically, NSPPK showed that carefully designed explicit representations can
+remain competitive with learned graph neural models, especially in low-data or
+sample-efficient regimes. Its sparse feature map also supports computationally
+transparent downstream learning and enables predictive behaviour to be related
+back to structural graph patterns.
+
+\textbf{GCDG for graph-conditioned generation.}
+The second contribution was the Graph-Conditioned Diffusion Generator (GCDG), a
+conditional graph generator that uses graph-level vectors to guide the
+generation of node-level representations. The central contribution is the
+graph-level-to-node-level conditional generation formulation: a fixed
+graph-level descriptor conditions the generation of a padded node-level feature
+matrix, from which the final graph is decoded. The diffusion process is defined
+over continuous node-level features, while the denoising network predicts the
+clean node representation and latent states used by downstream prediction
+modules. These modules estimate node presence, node labels, degree-related
+information, edge probabilities, and edge labels where available. A
+constraint-aware decoder then combines the node-level and pairwise predictions
+to construct the final discrete graph.
+
+This  design makes the generation process more inspectable than a single
+black-box graph decoder. Intermediate quantities such as node-existence
+probabilities, edge scores, degree predictions, and label predictions can be
+examined before the final graph is selected. Experiments on synthetic
+cycle--leg graphs and QM9 molecular graphs showed that conditioning quality and
+graph validity are distinct issues: a model may produce plausible graphs while
+failing to preserve the requested conditional structure. The chapter therefore
+emphasised generation as conditional graph construction rather than
+unconditional sampling alone.
+
+\textbf{RankGen for statistically grounded evaluation.}
+The third contribution was RankGen, a classifier-based framework for evaluating
+generative models. RankGen treats evaluation as a collection of predictive
+probes rather than as a single scalar similarity computation. The framework
+defines four complementary metrics: Quality, Utility, Indistinguishability,
+and Similarity, together with a composite score, Exchangeability. These metrics
+diagnose different failure modes, including poor
+task fidelity, lack of augmentation value, distributional separability, local
+structural mismatch, and memorisation.
+
+RankGen combines these probes with PAC-style finite-sample reliability
+bounds and robust quantile-based aggregation. This separates the question of
+whether a comparison is statistically reliable from the question of which
+reliable model should be ranked higher. Experiments across controlled
+perturbations, molecular graph
+generators, image benchmarks, and open-domain text generation demonstrated that
+the framework can expose behaviours that conventional metrics often collapse
+or obscure.
+
+\section{Key Insights and Lessons Learned}
+\label{sec:conclusion:insights}
+
+Several broader lessons emerge from these contributions.
+
+First, explicit graph representations remain valuable. Although neural graph
+models are highly expressive, deterministic feature maps can provide strong
+performance, favourable sample efficiency, and clearer interpretability. NSPPK
+shows that the limitations of classical kernels are not inherent to explicit
+representations themselves; they can be addressed by enriching the structural
+features and by treating continuous attributes directly.
+
+Second, graph generation benefits from separating modelling roles. In GCDG, the
+diffusion model is not asked to solve every part of graph generation at once.
+Continuous structural representations, categorical node labels, edge
+prediction, and final constraint satisfaction are handled by different
+components. This separation does not remove the difficulty of graph generation,
+but it makes the source of successes and failures easier to inspect.
+
+Third, conditional generation must be evaluated conditionally. It is not enough
+for a generated graph to look plausible under aggregate statistics. If the
+generator receives a graph-level condition, then the generated graph should be
+tested against the information encoded in that condition. The synthetic
+cycle--leg experiments illustrate this point clearly: different models can fail
+in different conditional regimes even when their outputs remain graph-like.
+
+Fourth, generative model evaluation is inherently multi-dimensional. A
+generator may preserve predictive signal but be distributionally
+distinguishable; it may generate realistic-looking samples that add little
+utility; or it may perform well under global metrics while failing local
+mixing or memorisation checks. RankGen addresses this by treating evaluation as
+a structured statistical problem rather than a search for one universal score.
+
+\section{Limitations}
+\label{sec:conclusion:limitations}
+
+The work in this thesis also has limitations.
+
+For NSPPK, the use of explicit substructure enumeration provides
+interpretability but can become expensive on dense or very large graphs. The
+method is designed around bounded radii and distances, so its practical
+scalability depends on parameter choices and graph density. The feature hashing
+pipeline is efficient and deterministic, but hashed representations can still
+merge distinct patterns when the hash space is limited. In addition, NSPPK
+captures structural information through predefined features rather than
+learning task-specific representations end-to-end.
+
+For GCDG, the  architecture introduces dependencies between components.
+If the node representation does not preserve information needed for decoding,
+the constrained decoder cannot recover it later. Conversely, a strong decoder or domain-specific constraint can improve validity,
+but it also makes it harder to determine how much of the final performance
+comes from the learned generator and how much comes from post-processing. 
+than as a complete molecular-design benchmark.
+
+For RankGen, the framework depends on the quality of the chosen classifiers,
+feature representations, and resampling protocol. Classifier-based evaluation
+is powerful because it connects generation to predictive tasks, but it also
+inherits the biases and limitations of the classifiers and embeddings used.
+The PAC-style bounds provide conservative reliability checks, yet they do not
+eliminate all sources of experimental variability. RankGen should therefore be
+viewed as a diagnostic framework rather than as a replacement for all
+domain-specific evaluation.
+
+Across the thesis, a further limitation is that the strongest claims are made
+within the graph and benchmark settings studied here. Across the thesis, a further limitation concerns the scope of the evaluation
+formalism. RankGen is developed primarily around supervised, classifier-based
+probes, where predictive accuracy and real-versus-generated discrimination
+provide natural diagnostic signals. Extending the framework to regression
+tasks, unsupervised learning, or settings without reliable labels would require
+additional formal development, including appropriate probe definitions,
+uncertainty bounds, and criteria for task-relevant utility.
+
+\section{Future Research Directions}
+\label{sec:conclusion:future}
+
+Several directions follow naturally from this work.
+
+\textbf{Hybrid explicit and neural representations.}
+NSPPK suggests that explicit graph features can provide useful structural
+signals. A promising direction is to combine such features with neural graph
+models, either as input channels, regularisers, attention biases, or
+interpretable probes for learned embeddings. This could preserve the
+sample-efficiency and auditability of kernels while benefiting from the
+task-specific flexibility of neural representation learning.
+
+\textbf{Scalable conditional graph generation.}
+Future work on GCDG could improve scalability to larger and denser graphs by
+developing more efficient decoding procedures, sparse pairwise prediction, and
+hierarchical generation. Another direction is to learn constraint handling more
+closely with the denoising process, reducing the gap between neural generation
+and final feasibility projection while retaining inspectability.
+
+\textbf{Richer condition preservation metrics.}
+Conditional generation requires evaluation methods that compare generated
+objects not only to a population, but also to the specific condition that
+produced them. Future work could extend RankGen-style probes to conditional
+settings by measuring condition-response fidelity, conditional diversity, and
+the stability of generated samples under controlled changes to the condition
+vector.
+
+\textbf{Evaluation under privacy and safety constraints.}
+RankGen already addresses memorisation as a diagnostic concern, but future work
+could connect the framework more directly to privacy auditing, extraction
+risk, and safety-sensitive deployment. This is especially important in domains
+where generated data may contain sensitive information or where synthetic data
+is used to support downstream decisions.
+
+\textbf{Application-specific scientific validation.}
+For molecular and other scientific graph domains, further validation should
+include stronger domain-specific constraints, expert-defined utility criteria,
+and prospective testing. Distributional similarity is useful, but scientific
+generators ultimately need to support discovery, optimisation, or reliable
+simulation in the target domain.
+
+\section{Closing Remarks}
+\label{sec:conclusion:closing}
+
+The central message of this thesis is that effective and trustworthy graph
+generation requires more than a powerful sampler. It requires representations
+that expose relevant graph structure, generators whose intermediate decisions
+can be inspected, and evaluation protocols that distinguish genuine utility
+from surface-level similarity.
+
+NSPPK, GCDG, and RankGen address these three parts of the problem. NSPPK shows
+that explicit graph structure can be represented in a sparse and interpretable
+form, including continuous attributes. GCDG shows how such graph-level
+information can guide a staged denoising generator for discrete graphs. RankGen
+shows how generated data can be assessed through statistically grounded,
+diagnostic probes.
+
+Taken together, the contributions support a broader view of graph generative
+modelling: representation, generation, and evaluation should be designed
+together. When these components are aligned, generated graphs can be assessed
+not only by whether they appear plausible, but by whether they preserve
+meaningful structure, satisfy relevant constraints, and provide reliable value
+for downstream use.

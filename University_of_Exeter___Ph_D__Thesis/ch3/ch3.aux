@@ -1,0 +1,255 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\@writefile{toc}{\contentsline {chapter}{\numberline {3}Interpretable Graph Representations with NSPPK}{49}{chapter.3}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\newlabel{ch:nsppk}{{3}{49}{Interpretable Graph Representations with NSPPK}{chapter.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3.1}Introduction}{49}{section.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Chapter contribution.}{49}{section*.68}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.2}Related Work}{50}{section.3.2}\protected@file@percent }
+\newlabel{sec:relatedwork}{{3.2}{50}{Related Work}{section.3.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3.3}Method}{51}{section.3.3}\protected@file@percent }
+\newlabel{sec:method}{{3.3}{51}{Method}{section.3.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.1}Core objects and notation}{52}{subsection.3.3.1}\protected@file@percent }
+\newlabel{sec:notation}{{3.3.1}{52}{Core objects and notation}{subsection.3.3.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.2}Augmented structural features}{53}{subsection.3.3.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.1}{\ignorespaces Example NSPPK structural features. Top: two radius-1 neighbourhoods centred at an anchor pair whose vertices are at shortest-path distance 4, together with their union-of-shortest-paths connector for $r'=0$, corresponding to a single shortest path. Bottom: an analogous anchor-pair configuration in which the two anchors are again at distance 4, but the connector contains two distinct shortest paths of length 4.}}{54}{figure.caption.69}\protected@file@percent }
+\newlabel{fig:example}{{3.1}{54}{Example NSPPK structural features. Top: two radius-1 neighbourhoods centred at an anchor pair whose vertices are at shortest-path distance 4, together with their union-of-shortest-paths connector for $r'=0$, corresponding to a single shortest path. Bottom: an analogous anchor-pair configuration in which the two anchors are again at distance 4, but the connector contains two distinct shortest paths of length 4}{figure.caption.69}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.3}From subgraphs to explicit features}{54}{subsection.3.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.4}Feature hashing pipeline}{55}{subsection.3.3.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.2}{\ignorespaces \textbf  {NSPDK vs.\ NSPPK on anchors $u,v$ with $r=1$ and $d=5$.} \emph  {Left:} NSPDK features for the case with a single shortest path (top) and two equal-length shortest paths (bottom). Because NSPDK uses only $(N_r(u),d(u,v),N_r(v))$, both cases produce the same feature. \emph  {Right:} NSPPK includes the connector $C_{r'}(u,v)=N_{r'}(U(u,v))$ (shown in green). The connector is a simple path in the top graph but a two-path union in the bottom graph, so NSPPK induces different features.}}{57}{figure.caption.70}\protected@file@percent }
+\newlabel{fig:nspdk-vs-nsppk-example}{{3.2}{57}{\textbf {NSPDK vs.\ NSPPK on anchors $u,v$ with $r=1$ and $d=5$.} \emph {Left:} NSPDK features for the case with a single shortest path (top) and two equal-length shortest paths (bottom). Because NSPDK uses only $(N_r(u),d(u,v),N_r(v))$, both cases produce the same feature. \emph {Right:} NSPPK includes the connector $C_{r'}(u,v)=N_{r'}(U(u,v))$ (shown in green). The connector is a simple path in the top graph but a two-path union in the bottom graph, so NSPPK induces different features}{figure.caption.70}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.5}Node attribute integration}{57}{subsection.3.3.5}\protected@file@percent }
+\newlabel{subsec:attribute_integration}{{3.3.5}{57}{Node attribute integration}{subsection.3.3.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.6}NSPPK Expressivity Beyond 1-WL and NSPDK}{58}{subsection.3.3.6}\protected@file@percent }
+\newlabel{sec:isomorphism}{{3.3.6}{58}{NSPPK Expressivity Beyond 1-WL and NSPDK}{subsection.3.3.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3.3}{\ignorespaces Illustrative graph pairs that local neighbourhood-based methods may fail to distinguish, but which NSPPK can separate by encoding connector structure. \textbf  {(a)} \(C_6\) vs.\ \(K_3 \cup K_3\) (two disconnected triangles). \textbf  {(b)} Bow-tie vs.\ \(2\times 3\) grid (“ladder”).}}{59}{figure.caption.71}\protected@file@percent }
+\newlabel{fig:isomorphism}{{3.3}{59}{Illustrative graph pairs that local neighbourhood-based methods may fail to distinguish, but which NSPPK can separate by encoding connector structure. \textbf {(a)} \(C_6\) vs.\ \(K_3 \cup K_3\) (two disconnected triangles). \textbf {(b)} Bow-tie vs.\ \(2\times 3\) grid (“ladder”)}{figure.caption.71}{}}
+\@writefile{toc}{\contentsline {paragraph}{NSPPK vs.\ NSPDK.}{59}{section*.72}\protected@file@percent }
+\newlabel{prop:nsppk_separates_nspdk}{{3.1}{59}{NSPPK separates connector-distinct anchor configurations}{theorem.3.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.7}Complexity Analysis}{60}{subsection.3.3.7}\protected@file@percent }
+\newlabel{sec:complexity}{{3.3.7}{60}{Complexity Analysis}{subsection.3.3.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3.4}{\ignorespaces \textbf  {A concrete anchor configuration separated by NSPPK but not NSPDK.} Both graphs share the same outer 6-cycle, and the chosen anchors, nodes $1$ and $4$, have identical rooted neighbourhoods $N_r(1)$ and $N_r(4)$ for $r\le R_0$ (here $R_0=1$), with the same anchor distance $d(1,4)$. Therefore, NSPDK assigns the same feature to this anchor configuration. \textbf  {(a)} Inner square on nodes $\{2,3,5,6\}$. \textbf  {(b)} Inner cross via diagonals $(2,5)$ and $(3,6)$. However, the connector $C_{r'}(1,4)$ differs: the union of shortest paths $U(1,4)$ forms a cycle in (a) and two node-disjoint paths in (b). Hence, NSPPK assigns distinct connector features under idealised isomorphism-aware hashing.}}{61}{figure.caption.73}\protected@file@percent }
+\newlabel{fig:nsppk-vs-nspdk-hexagon}{{3.4}{61}{\textbf {A concrete anchor configuration separated by NSPPK but not NSPDK.} Both graphs share the same outer 6-cycle, and the chosen anchors, nodes $1$ and $4$, have identical rooted neighbourhoods $N_r(1)$ and $N_r(4)$ for $r\le R_0$ (here $R_0=1$), with the same anchor distance $d(1,4)$. Therefore, NSPDK assigns the same feature to this anchor configuration. \textbf {(a)} Inner square on nodes $\{2,3,5,6\}$. \textbf {(b)} Inner cross via diagonals $(2,5)$ and $(3,6)$. However, the connector $C_{r'}(1,4)$ differs: the union of shortest paths $U(1,4)$ forms a cycle in (a) and two node-disjoint paths in (b). Hence, NSPPK assigns distinct connector features under idealised isomorphism-aware hashing}{figure.caption.73}{}}
+\@writefile{toc}{\contentsline {paragraph}{Kernel evaluation.}{62}{section*.74}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.8}Balancing Feature Size and Hash Collisions}{63}{subsection.3.3.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.9}Diagonal Dominance and Robustness: Quantitative Analysis}{63}{subsection.3.3.9}\protected@file@percent }
+\newlabel{sec:Diagonal}{{3.3.9}{63}{Diagonal Dominance and Robustness: Quantitative Analysis}{subsection.3.3.9}{}}
+\newlabel{fig:nbit-a}{{3.5a}{64}{Predictive performance vs.\ number of hash bits}{figure.caption.75}{}}
+\newlabel{sub@fig:nbit-a}{{a}{64}{Predictive performance vs.\ number of hash bits}{figure.caption.75}{}}
+\newlabel{fig:nsppk_qm9-a}{{3.5b}{64}{NSPPK vectorization time on QM9 vs.\ number of hash bits}{figure.caption.75}{}}
+\newlabel{sub@fig:nsppk_qm9-a}{{b}{64}{NSPPK vectorization time on QM9 vs.\ number of hash bits}{figure.caption.75}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3.5}{\ignorespaces Hash-size trade-offs: (a) predictive performance and (b) computational cost.}}{64}{figure.caption.75}\protected@file@percent }
+\newlabel{fig:bits_tradeoff}{{3.5}{64}{Hash-size trade-offs: (a) predictive performance and (b) computational cost}{figure.caption.75}{}}
+\newlabel{fig:inst-curves}{{3.6a}{66}{Instance similarity curves}{figure.caption.76}{}}
+\newlabel{sub@fig:inst-curves}{{a}{66}{Instance similarity curves}{figure.caption.76}{}}
+\newlabel{fig:pairwise}{{3.6b}{66}{Pairwise similarity matrices}{figure.caption.76}{}}
+\newlabel{sub@fig:pairwise}{{b}{66}{Pairwise similarity matrices}{figure.caption.76}{}}
+\newlabel{fig:emb-vs-spec}{{3.6c}{66}{Embedding vs.\ spectral similarity (Spearman's $\rho $)}{figure.caption.76}{}}
+\newlabel{sub@fig:emb-vs-spec}{{c}{66}{Embedding vs.\ spectral similarity (Spearman's $\rho $)}{figure.caption.76}{}}
+\newlabel{fig:svd-entropy}{{3.6d}{66}{SVD entropy of similarity matrices}{figure.caption.76}{}}
+\newlabel{sub@fig:svd-entropy}{{d}{66}{SVD entropy of similarity matrices}{figure.caption.76}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3.6}{\ignorespaces \textbf  {Unified robustness analysis of graph similarity methods under perturbations.} (a) Decay of self-similarity across perturbations. (b) Pairwise similarity matrices showing diagonal dominance in baselines versus NSPPK. (c) Correlation between kernel similarity and spectral similarity (Spearman $\rho $). (d) SVD entropy of similarity matrices. NSPPK preserves stable, meaningful similarity structure, avoiding diagonal collapse.}}{66}{figure.caption.76}\protected@file@percent }
+\newlabel{fig:perturbation_panel}{{3.6}{66}{\textbf {Unified robustness analysis of graph similarity methods under perturbations.} (a) Decay of self-similarity across perturbations. (b) Pairwise similarity matrices showing diagonal dominance in baselines versus NSPPK. (c) Correlation between kernel similarity and spectral similarity (Spearman $\rho $). (d) SVD entropy of similarity matrices. NSPPK preserves stable, meaningful similarity structure, avoiding diagonal collapse}{figure.caption.76}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3.4}Experiments}{67}{section.3.4}\protected@file@percent }
+\newlabel{sec:experiments}{{3.4}{67}{Experiments}{section.3.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.1}Small-Scale Datasets}{67}{subsection.3.4.1}\protected@file@percent }
+\newlabel{sec:small_datasets}{{3.4.1}{67}{Small-Scale Datasets}{subsection.3.4.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.1}{\ignorespaces Classification accuracy (\%) with node attributes (+) and average rank.}}{68}{table.caption.77}\protected@file@percent }
+\newlabel{tab:with_attr}{{3.1}{68}{Classification accuracy (\%) with node attributes (+) and average rank}{table.caption.77}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.2}{\ignorespaces Neural networks: classification accuracy (\%) with node attributes (+) and Avg Rank.}}{68}{table.caption.78}\protected@file@percent }
+\newlabel{tab:nn_with_attr}{{3.2}{68}{Neural networks: classification accuracy (\%) with node attributes (+) and Avg Rank}{table.caption.78}{}}
+\@writefile{toc}{\contentsline {subsubsection}{Runtime and Efficiency}{68}{section*.79}\protected@file@percent }
+\newlabel{sec:runtime}{{3.4.1}{68}{Runtime and Efficiency}{section*.79}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.3}{\ignorespaces Runtime (seconds) \textbf  {with} node attributes (\textbf  {lower is better}).}}{69}{table.caption.80}\protected@file@percent }
+\newlabel{tab:with_attr_runtime_kernels}{{3.3}{69}{Runtime (seconds) \textbf {with} node attributes (\textbf {lower is better})}{table.caption.80}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.4}{\ignorespaces Neural runtimes (seconds) \textbf  {with} node attributes (\textbf  {lower is better}).}}{69}{table.caption.81}\protected@file@percent }
+\newlabel{tab:with_attr_runtime_nns}{{3.4}{69}{Neural runtimes (seconds) \textbf {with} node attributes (\textbf {lower is better})}{table.caption.81}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3.7}{\ignorespaces Critical difference diagram for \textbf  {kernel} methods on accuracy. The horizontal axis shows average normalised rank across datasets, scaled to $[0,1]$ so that higher values indicate better performance. Non-significant groups under Conover post-hoc testing (Holm-corrected) are indicated by shared crossbars.}}{70}{figure.caption.82}\protected@file@percent }
+\newlabel{fig:cd_kernels}{{3.7}{70}{Critical difference diagram for \textbf {kernel} methods on accuracy. The horizontal axis shows average normalised rank across datasets, scaled to $[0,1]$ so that higher values indicate better performance. Non-significant groups under Conover post-hoc testing (Holm-corrected) are indicated by shared crossbars}{figure.caption.82}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3.8}{\ignorespaces Critical difference diagram for \textbf  {neural} baselines and the NSPPK-feature pipeline on accuracy. The horizontal axis shows average normalised rank across datasets, scaled to $[0,1]$ so that higher values indicate better performance. Non-significant groups under Conover post-hoc testing (Holm-corrected) are indicated by shared crossbars.}}{70}{figure.caption.83}\protected@file@percent }
+\newlabel{fig:cd_nn}{{3.8}{70}{Critical difference diagram for \textbf {neural} baselines and the NSPPK-feature pipeline on accuracy. The horizontal axis shows average normalised rank across datasets, scaled to $[0,1]$ so that higher values indicate better performance. Non-significant groups under Conover post-hoc testing (Holm-corrected) are indicated by shared crossbars}{figure.caption.83}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.2}Parallel Scalability}{70}{subsection.3.4.2}\protected@file@percent }
+\newlabel{sec:parallel}{{3.4.2}{70}{Parallel Scalability}{subsection.3.4.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3.9}{\ignorespaces Vectorization time vs.\ number of CPU cores on QM9 (log-log scale). NSPPK demonstrates excellent parallel scalability, reducing total vectorization time from over an hour (using a single core) to under 10 minutes with 112 CPU cores. This shows near-linear performance gains with increased parallelization.}}{71}{figure.caption.84}\protected@file@percent }
+\newlabel{fig:appendix_scaling_plot}{{3.9}{71}{Vectorization time vs.\ number of CPU cores on QM9 (log-log scale). NSPPK demonstrates excellent parallel scalability, reducing total vectorization time from over an hour (using a single core) to under 10 minutes with 112 CPU cores. This shows near-linear performance gains with increased parallelization}{figure.caption.84}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.3}Ablation Study}{71}{subsection.3.4.3}\protected@file@percent }
+\newlabel{sec:ablation}{{3.4.3}{71}{Ablation Study}{subsection.3.4.3}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.5}{\ignorespaces Ablation study: Accuracy (\%) $\pm $ Std.}}{72}{table.caption.85}\protected@file@percent }
+\newlabel{tab:ablation}{{3.5}{72}{Ablation study: Accuracy (\%) $\pm $ Std}{table.caption.85}{}}
+\@writefile{toc}{\contentsline {subsubsection}{Hyperparameter Sensitivity Analysis}{72}{section*.86}\protected@file@percent }
+\newlabel{sensitivity}{{3.4.3}{72}{Hyperparameter Sensitivity Analysis}{section*.86}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.6}{\ignorespaces Sensitivity of NSPPK accuracy to structural parameters on COX2 (stratified 10-fold cross-validation). Entries report mean accuracy $\pm $ standard deviation across folds, shown as fractions. Each column varies one hyperparameter while fixing the others at $(R,D,R')=(1,4,1)$.}}{72}{table.caption.87}\protected@file@percent }
+\newlabel{tab:sensitivity}{{3.6}{72}{Sensitivity of NSPPK accuracy to structural parameters on COX2 (stratified 10-fold cross-validation). Entries report mean accuracy $\pm $ standard deviation across folds, shown as fractions. Each column varies one hyperparameter while fixing the others at $(R,D,R')=(1,4,1)$}{table.caption.87}{}}
+\newlabel{tab:coxsensitivity}{{3.6}{72}{Sensitivity of NSPPK accuracy to structural parameters on COX2 (stratified 10-fold cross-validation). Entries report mean accuracy $\pm $ standard deviation across folds, shown as fractions. Each column varies one hyperparameter while fixing the others at $(R,D,R')=(1,4,1)$}{table.caption.87}{}}
+\@writefile{toc}{\contentsline {subsubsection}{Density-Sensitivity Experiment}{72}{section*.88}\protected@file@percent }
+\newlabel{appendix:density_sensitivity}{{3.4.3}{72}{Density-Sensitivity Experiment}{section*.88}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.7}{\ignorespaces NSPPK feature extraction time vs.\ average graph degree on Erdős--Rényi graphs ($n=300$).}}{73}{table.caption.89}\protected@file@percent }
+\newlabel{tab:density_sensitivity}{{3.7}{73}{NSPPK feature extraction time vs.\ average graph degree on Erdős--Rényi graphs ($n=300$)}{table.caption.89}{}}
+\@writefile{toc}{\contentsline {paragraph}{Discussion.}{73}{section*.90}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.4}Experiments on Citation Networks}{73}{subsection.3.4.4}\protected@file@percent }
+\newlabel{sec:citation}{{3.4.4}{73}{Experiments on Citation Networks}{subsection.3.4.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.8}{\ignorespaces Test ROC--AUC (macro, one-vs-rest) on citation networks.}}{74}{table.caption.91}\protected@file@percent }
+\newlabel{tab:citation_results}{{3.8}{74}{Test ROC--AUC (macro, one-vs-rest) on citation networks}{table.caption.91}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.5}Structural-only setting.}{74}{subsection.3.4.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.6}Large-Scale Evaluation}{74}{subsection.3.4.6}\protected@file@percent }
+\newlabel{sec:large}{{3.4.6}{74}{Large-Scale Evaluation}{subsection.3.4.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3.10}{\ignorespaces Learning curves on \texttt  {ogbg-molpcba} (task~95). NSPPK (red) compared with neural baselines including GIN, GAT, PNA, PDF, and AttentiveFP (FNP).}}{75}{figure.caption.92}\protected@file@percent }
+\newlabel{fig:large_experiment}{{3.10}{75}{Learning curves on \texttt {ogbg-molpcba} (task~95). NSPPK (red) compared with neural baselines including GIN, GAT, PNA, PDF, and AttentiveFP (FNP)}{figure.caption.92}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3.5}Conclusion}{75}{section.3.5}\protected@file@percent }
+\newlabel{sec:Conclusion}{{3.5}{75}{Conclusion}{section.3.5}{}}
+\@setckpt{ch3/ch3}{
+\setcounter{page}{77}
+\setcounter{equation}{0}
+\setcounter{enumi}{3}
+\setcounter{enumii}{0}
+\setcounter{enumiii}{0}
+\setcounter{enumiv}{0}
+\setcounter{footnote}{0}
+\setcounter{mpfootnote}{0}
+\setcounter{part}{0}
+\setcounter{chapter}{3}
+\setcounter{section}{5}
+\setcounter{subsection}{0}
+\setcounter{subsubsection}{0}
+\setcounter{paragraph}{0}
+\setcounter{subparagraph}{0}
+\setcounter{figure}{10}
+\setcounter{table}{8}
+\setcounter{tabx@nest}{0}
+\setcounter{listtotal}{0}
+\setcounter{listcount}{0}
+\setcounter{liststart}{0}
+\setcounter{liststop}{0}
+\setcounter{citecount}{0}
+\setcounter{citetotal}{0}
+\setcounter{multicitecount}{0}
+\setcounter{multicitetotal}{0}
+\setcounter{instcount}{0}
+\setcounter{maxnames}{3}
+\setcounter{minnames}{1}
+\setcounter{maxitems}{3}
+\setcounter{minitems}{1}
+\setcounter{citecounter}{0}
+\setcounter{maxcitecounter}{0}
+\setcounter{savedcitecounter}{0}
+\setcounter{uniquelist}{0}
+\setcounter{uniquename}{0}
+\setcounter{refsection}{0}
+\setcounter{refsegment}{0}
+\setcounter{maxextratitle}{0}
+\setcounter{maxextratitleyear}{0}
+\setcounter{maxextraname}{0}
+\setcounter{maxextradate}{0}
+\setcounter{maxextraalpha}{0}
+\setcounter{abbrvpenalty}{50}
+\setcounter{highnamepenalty}{50}
+\setcounter{lownamepenalty}{25}
+\setcounter{maxparens}{3}
+\setcounter{parenlevel}{0}
+\setcounter{blx@maxsection}{0}
+\setcounter{mincomprange}{10}
+\setcounter{maxcomprange}{100000}
+\setcounter{mincompwidth}{1}
+\setcounter{afterword}{0}
+\setcounter{savedafterword}{0}
+\setcounter{annotator}{0}
+\setcounter{savedannotator}{0}
+\setcounter{author}{0}
+\setcounter{savedauthor}{0}
+\setcounter{bookauthor}{0}
+\setcounter{savedbookauthor}{0}
+\setcounter{commentator}{0}
+\setcounter{savedcommentator}{0}
+\setcounter{editor}{0}
+\setcounter{savededitor}{0}
+\setcounter{editora}{0}
+\setcounter{savededitora}{0}
+\setcounter{editorb}{0}
+\setcounter{savededitorb}{0}
+\setcounter{editorc}{0}
+\setcounter{savededitorc}{0}
+\setcounter{foreword}{0}
+\setcounter{savedforeword}{0}
+\setcounter{holder}{0}
+\setcounter{savedholder}{0}
+\setcounter{introduction}{0}
+\setcounter{savedintroduction}{0}
+\setcounter{namea}{0}
+\setcounter{savednamea}{0}
+\setcounter{nameb}{0}
+\setcounter{savednameb}{0}
+\setcounter{namec}{0}
+\setcounter{savednamec}{0}
+\setcounter{translator}{0}
+\setcounter{savedtranslator}{0}
+\setcounter{shortauthor}{0}
+\setcounter{savedshortauthor}{0}
+\setcounter{shorteditor}{0}
+\setcounter{savedshorteditor}{0}
+\setcounter{labelname}{0}
+\setcounter{savedlabelname}{0}
+\setcounter{institution}{0}
+\setcounter{savedinstitution}{0}
+\setcounter{lista}{0}
+\setcounter{savedlista}{0}
+\setcounter{listb}{0}
+\setcounter{savedlistb}{0}
+\setcounter{listc}{0}
+\setcounter{savedlistc}{0}
+\setcounter{listd}{0}
+\setcounter{savedlistd}{0}
+\setcounter{liste}{0}
+\setcounter{savedliste}{0}
+\setcounter{listf}{0}
+\setcounter{savedlistf}{0}
+\setcounter{location}{0}
+\setcounter{savedlocation}{0}
+\setcounter{organization}{0}
+\setcounter{savedorganization}{0}
+\setcounter{origlocation}{0}
+\setcounter{savedoriglocation}{0}
+\setcounter{origpublisher}{0}
+\setcounter{savedorigpublisher}{0}
+\setcounter{publisher}{0}
+\setcounter{savedpublisher}{0}
+\setcounter{language}{0}
+\setcounter{savedlanguage}{0}
+\setcounter{origlanguage}{0}
+\setcounter{savedoriglanguage}{0}
+\setcounter{pageref}{0}
+\setcounter{savedpageref}{0}
+\setcounter{textcitecount}{0}
+\setcounter{textcitetotal}{0}
+\setcounter{textcitemaxnames}{0}
+\setcounter{biburlbigbreakpenalty}{100}
+\setcounter{biburlbreakpenalty}{200}
+\setcounter{biburlnumpenalty}{0}
+\setcounter{biburlucpenalty}{0}
+\setcounter{biburllcpenalty}{0}
+\setcounter{smartand}{1}
+\setcounter{bbx:relatedcount}{0}
+\setcounter{bbx:relatedtotal}{0}
+\setcounter{parentequation}{0}
+\setcounter{theorem}{1}
+\setcounter{caption@flags}{2}
+\setcounter{continuedfloat}{0}
+\setcounter{subfigure}{0}
+\setcounter{subtable}{0}
+\setcounter{LT@tables}{1}
+\setcounter{LT@chunks}{1}
+\setcounter{nlinenum}{0}
+\setcounter{float@type}{8}
+\setcounter{algorithm}{0}
+\setcounter{ALG@line}{0}
+\setcounter{ALG@rem}{0}
+\setcounter{ALG@nested}{0}
+\setcounter{ALG@Lnr}{2}
+\setcounter{ALG@blocknr}{10}
+\setcounter{ALG@storecount}{0}
+\setcounter{ALG@tmpcounter}{0}
+\setcounter{section@level}{1}
+\setcounter{Item}{3}
+\setcounter{bookmark@seq@number}{43}
+\setcounter{BackrefHyperFootnoteCounter}{1}
+}

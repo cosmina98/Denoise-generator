@@ -1,0 +1,173 @@
+\chapter{Introduction}
+\label{ch:intro}
+
+\section{Motivation}
+\label{sec:intro:motivation}
+
+Graphs arise across a wide range of scientific and technological domains. Molecules can be represented as atoms connected by chemical bonds; citation networks as documents linked by references; social networks as individuals connected through interactions; and biological systems as proteins, genes, or metabolites related through functional processes. More generally, many complex systems are naturally described as collections of entities together with the relationships among them. In these settings, the graph is not merely a convenient storage format: its connectivity is an essential part of the object being modelled.
+
+This thesis studies three closely connected problems in graph machine learning: how to construct graph representations that are robust and interpretable, how to generate new graphs under graph-level conditions, and how to evaluate graph generative models in a statistically reliable manner. Although these problems are often considered separately, they are fundamentally interdependent. A generative model can only be guided by information that has been represented effectively; generated graphs can only be trusted when their quality and task-relevant utility can be assessed; and such assessments depend on representations that expose the structural properties of interest.
+
+Graph data present challenges that distinguish them from vectors, images, and sequences. Graphs have no canonical ordering of their nodes, may vary substantially in size, and often contain irregular local structures\citep{bronstein2017geometric}. Their defining properties may depend on small motifs, extended neighbourhoods, or long-range connectivity across distant regions. These characteristics motivate expressive learning methods such as graph neural networks and graph diffusion models, but they also complicate interpretability, robustness, and evaluation.
+
+Graph kernels provide a complementary approach to learning from graph-struc\-tured data. Over the past two decades, numerous kernels have been developed to compare graphs through structural components such as walks, paths, neighbourhoods, subtrees, and graphlets\citep{nikolentzos2021graph}. Their explicit and deterministic representations can offer strong interpretability and sample efficiency. However, many classical graph kernels were designed primarily for discrete node labels and therefore handle continuous attributes only through discretisation or other indirect mechanisms. Neural approaches can learn more flexible representations from attributed data, but their behaviour may be sensitive to optimisation and architectural choices and can be more difficult to inspect.
+
+This thesis is motivated by the view that reliable graph machine learning should combine the strengths of these traditions. It develops explicit representations that retain meaningful graph structure, conditional generative models whose outputs can be guided by graph-level information, and evaluation protocols that distinguish genuine structural and task-relevant utility from superficial similarity.
+
+
+\section{Problem Setting}
+\label{sec:intro:problem}
+
+The central object considered in this thesis is a graph
+\[
+    G=(V,E),
+\]
+possibly equipped with node labels, edge labels, or continuous node attributes.
+The thesis focuses on graph-level and dataset-level questions rather than on a
+single supervised prediction task. In particular, it considers:
+
+\begin{enumerate}[label=(\roman*)]
+    \item representation: constructing graph feature maps that preserve
+    structural and attribute information while remaining computationally
+    practical and interpretable;
+    \item generation: producing labelled graphs from graph-level conditioning
+    information using a staged denoising and decoding process; and
+    \item evaluation: comparing generative models using diagnostic,
+    statistically controlled measures rather than relying on a single heuristic
+    score.
+\end{enumerate}
+
+These three components form the methodological arc of the thesis. First, an
+explicit representation is developed for attributed graphs. Second, this
+representation is used as a graph-level condition for a denoising graph
+generator. Third, a general evaluation framework is introduced to diagnose
+whether generated data is useful, distributionally aligned, and statistically
+reliable.
+
+\section{Aim, Objectives, and Research Questions}
+\label{sec:intro:questions}
+
+The overall aim of this thesis is to develop robust and interpretable methods
+for graph representation, graph-conditioned generation, and statistically
+grounded evaluation of graph generative models.
+
+This aim is addressed through the following objectives.
+
+\begin{description}[leftmargin=0pt,style=nextline]
+    \item[O1.]
+    To develop an explicit graph representation whose individual features jointly encode the local neighbourhoods around node pairs and the longer-range structure connecting them, while incorporating continuous node attributes without discretisation.
+    \item[O2.]
+    To evaluate whether such an explicit representation can provide accurate,
+    scalable, and interpretable graph-level features across molecular,
+    citation, and larger-scale graph benchmarks.
+
+    \item[O3.]
+    To design a graph-conditioned diffusion generator that uses graph-level
+    structural information to guide the generation of discrete graphs.
+
+    \item[O4.]
+    To separate the reverse diffusion process over node-level features, edge
+    prediction, and constraint-aware decoding so that the graph generation
+    process can incorporate feasibility constraints.
+
+    \item[O5.]
+    To develop a statistically grounded evaluation framework that diagnoses
+    multiple generative failure modes, including poor task fidelity,
+    distributional mismatch, low augmentation value, local structural
+    mismatch, and memorization.
+
+    \item[O6.]
+    To compare generative models using uncertainty-aware summaries and
+    reliability checks rather than relying only on single scalar metrics.
+\end{description}
+
+These objectives lead to the following research questions.
+
+\begin{description}[leftmargin=0pt,style=nextline]
+    \item[RQ1.]
+    How can graph kernels be extended to incorporate continuous node attributes
+    directly while retaining explicit, sparse, and interpretable feature maps?
+
+    \item[RQ2.]
+    How can graph-level structural information be used to condition a
+    diffusion-based generator for labeled graphs?
+
+    \item[RQ3.]
+    How can graph generative models be evaluated in a way that distinguishes
+    predictive utility, distributional alignment, memorisation, and structural
+    fidelity?
+
+    \item[RQ4.]
+    How can empirical generator comparisons be made more reliable through
+    uncertainty-aware summaries and statistical guarantees?
+\end{description}
+
+These questions are deliberately connected. The first question concerns the
+representation of graph structure. The second uses such representations as
+conditioning signals for generation. The third and fourth address the problem
+of deciding whether generated samples should be trusted.
+
+\section{Thesis Contributions}
+\label{sec:intro:contributions}
+
+This thesis makes three main methodological contributions.
+
+\textbf{Explicit attributed graph representation.}
+Chapter~\ref{ch:nsppk} introduces the Neighborhood Subgraph Pairwise Path
+Kernel (NSPPK), an explicit graph kernel whose features jointly encode the
+local neighbourhoods around node pairs and the broader graph structure
+connecting them. Connector subgraphs are constructed from unions of shortest
+paths, while continuous node attributes are incorporated directly into the
+feature map without discretisation. The resulting representation is sparse,
+deterministic, and interpretable, supports efficient dot-product kernel
+evaluation, and allows predictive signals to be traced back to structural
+graph patterns.
+
+\textbf{Graph-conditioned denoising generation.}
+Chapter~\ref{ch:generator} introduces the Graph-Conditioned Diffusion Generator
+(GCDG), a conditional generator that separates continuous node-level denoising
+from discrete graph construction. A graph-level condition vector guides a
+transformer-based denoising model, while node existence, node and edge labels,
+degrees, and edge probabilities are predicted through dedicated modules before
+constraint-aware decoding. This staged design makes intermediate predictions
+inspectable and allows graph feasibility constraints to be enforced explicitly
+during generation.
+
+\textbf{Statistically grounded generator evaluation.}
+Chapter~\ref{ch:rankgen} introduces RankGen, a classifier-based framework for
+evaluating generative models. RankGen defines complementary measures of
+Quality, Utility, Indistinguishability, and Similarity, each designed to expose
+a different failure mode. It combines these measures with PAC-style reliability
+bounds, robust quantile summaries, and a ranking procedure that distinguishes
+statistical confidence from fine-grained model comparison. The framework is
+validated across controlled perturbations and generative tasks involving
+molecular graphs, images, and open-domain text.
+
+Together, these contributions support the central claim of this thesis: graph
+generation should be treated as a pipeline of representation, synthesis, and
+diagnosis. Generated graphs should not be judged using a single measure of
+plausibility, but according to whether they preserve relevant structure,
+satisfy domain constraints, support downstream use, and remain reliable under
+statistically grounded evaluation.
+
+\section{Thesis Structure}
+\label{sec:intro:structure}
+
+Chapter~\ref{ch:theory} introduces the theoretical and methodological
+background required for the thesis, including graph notation, graph
+representation learning, graph kernels, neural graph models, diffusion-based
+generation, and principles for evaluating generated data.
+
+Chapter~\ref{ch:nsppk} develops NSPPK and presents its construction,
+computational analysis, implementation, and empirical evaluation.
+
+Chapter~\ref{ch:generator} develops GCDG and describes its conditioning
+mechanism, corruption and diffusion processes, prediction modules, decoding
+procedure, training objective, and empirical evaluation.
+
+Chapter~\ref{ch:rankgen} develops RankGen, defines its evaluation measures and
+reliability guarantees, and assesses the framework on molecular graphs, images,
+and open-domain text, as well as under controlled perturbation settings.
+
+Chapter~\ref{ch:conclusion} summarises the findings, discusses the limitations
+of the proposed methods, and outlines directions for future research.
