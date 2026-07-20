@@ -54,13 +54,19 @@ Feature-wise noise scale, \(\Gamma(t)\) & Per-feature scale applied to Gaussian 
 Continuous-feature mask, \(B_{\mathrm{cont}}\) & Masks the feature dimensions trained by the continuous denoising loss, excluding categorical feature blocks handled by classification losses. \\
 Discrete corruption mode & Determines how categorical feature blocks are corrupted. The variants used in the experiments include no discrete corruption, random replacement, and absorbing-mask corruption. \\
 Projection noise threshold & Noise level below which categorical feature blocks may be projected to class predictions during sampling. \\
+Existence projection during sampling & Projects the generated existence channel to binary node-presence decisions during sampling. \\
+Degree projection during sampling & Projects generated degree information to valid degree classes during sampling. \\
+Node-label projection during sampling & Projects generated node-label information to valid label classes during sampling. \\
 Noise-prediction loss weight, \(\lambda_{\varepsilon}\) & Weight on the continuous denoising loss \(\mathcal{L}_{\varepsilon}\). \\
 Clean-matrix loss weight, \(\lambda_{x_0}\) & Optional weight on direct reconstruction of the clean node feature matrix \(\hat{X}_0\). \\
 Condition-to-\(X_0\) prior weight, \(\lambda_{\mathrm{cond}\to x_0}\) & Optional weight for a direct prediction from the graph-level condition to the clean node feature matrix. \\
 Node-existence loss weight, \(\lambda_{\mathrm{exist}}\) & Weight on the binary classification task for whether a node row corresponds to a real node. \\
 Degree loss weight, \(\lambda_{\mathrm{deg}}\) & Weight on the categorical degree-class prediction task. \\
+Balanced degree loss & Optional class reweighting for the degree-class loss, used to reduce domination by frequent degree classes. \\
 Node-label loss weight, \(\lambda_{\tau_V}\) & Weight on the categorical node-label prediction task. \\
+Balanced node-label loss & Optional class reweighting for the node-label loss, used when node-label classes are imbalanced. \\
 Consistency loss weight, \(\lambda_{\mathrm{cons}}\) & Weight on the penalty discouraging non-existent padded rows from carrying non-zero continuous information. \\
+Continuous denoising of discrete channels & Optional variant in which degree and node-label channels are also treated as continuous denoising targets. When disabled, these quantities are predicted by categorical heads. \\
 \bottomrule
 \end{tabularx}
 \caption{Denoising and supervised node-level objective parameters.}
@@ -87,6 +93,7 @@ Distance-edge blend & Optional blending of distance-derived edge evidence into e
 Edge probability matrix, \(P^{\mathrm{edge}}\) & Matrix of predicted edge probabilities passed to the graph decoder. \\
 Degree slack penalty, \(\lambda_{\mathrm{slack}}\) & Penalty on violations of predicted target degrees in the constrained adjacency decoder. \\
 Connectivity constraint & Adds flow constraints requiring the decoded graph to be connected when the dataset or experiment requires it. \\
+MST warm start & Initialises the constrained decoder from a maximum-spanning tree over predicted edge probabilities before solving the final edge-selection problem. \\
 Edge generation mode & Selects the source of edge probabilities, such as direct pairwise prediction, final edge state, or an external edge provider. \\
 \bottomrule
 \end{tabularx}
@@ -210,17 +217,70 @@ Node-label histogram control & Enabled. \\
 Edge supervision & Enabled. \\
 Supervised edge-pair fraction & \(0.30\). \\
 Edge-generation mode & Direct pairwise edge prediction. \\
-Joint edge state & Enabled. \\
-Joint edge message-passing steps & \(3\). \\
-Joint edge deletion probability & \(0.10\). \\
-Joint edge addition probability & \(0.02\). \\
-Joint edge momentum & \(0.70\). \\
-Joint edge threshold & \(0.40\). \\
+Joint edge state & Disabled in the reference synthetic configuration. The joint edge-state parameters were only used in the corresponding ablation. \\
+Joint edge message-passing steps & \(3\), when the joint edge-state variant is enabled. \\
+Joint edge deletion probability & \(0.10\), when the joint edge-state variant is enabled. \\
+Joint edge addition probability & \(0.02\), when the joint edge-state variant is enabled. \\
+Joint edge momentum & \(0.70\), when the joint edge-state variant is enabled. \\
+Joint edge threshold & \(0.40\), when the joint edge-state variant is enabled. \\
 \bottomrule
 \end{tabularx}
 \caption{Hyperparameters for the graph-conditioned diffusion generator in the synthetic cycle--leg experiment.}
 \label{tab:synthetic-cycle-leg-proposed-hyperparameters}
 \end{table}
+
+\begin{xltabular}{\textwidth}{@{}p{0.34\textwidth}p{0.24\textwidth}X@{}}
+\caption{Ablation variables for the synthetic cycle--leg experiment. The
+reference setting is the tuned configuration used in the main synthetic
+comparison.}
+\label{tab:synthetic-cycle-leg-ablation-variables}\\
+
+\toprule
+Variable & Reference value & Ablated value or interpretation \\
+\midrule
+\endfirsthead
+
+\multicolumn{3}{@{}l}{%
+\footnotesize\itshape
+Table~\thetable\ continued from the previous page
+}\\
+\toprule
+Variable & Reference value & Ablated value or interpretation \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{3}{r@{}}{\footnotesize Continued on the next page}
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+Conditioned degree-histogram control & Enabled & Disabled to test whether final degree-composition projection is needed. \\
+Conditioned node-count control & Enabled & Disabled to test whether the generator can infer graph size without an explicit condition-to-count model. \\
+Conditioned label-histogram control & Enabled & Disabled to test whether label-composition projection is needed. In the recorded notebook this was disabled together with node-count control, so it should be interpreted as a combined ablation. \\
+Matched-row loss & Disabled & Enabled to test whether Hungarian row alignment improves clean-matrix supervision. \\
+Joint edge-state variant & Disabled & Enabled to test whether a provisional adjacency state during denoising improves generation. \\
+Random row permutation & Disabled & Enabled as training-time row-order augmentation. \\
+Distance supervision & Enabled & Disabled to test the contribution of binned pairwise-distance prediction. In the recorded notebook this was combined with enabling balanced degree loss. \\
+Balanced degree loss & Disabled & Enabled to test class reweighting for degree prediction. \\
+Balanced edge loss & Enabled & Disabled to test the effect of edge/non-edge class reweighting. \\
+Node-feature dimensionality reduction & Enabled & Disabled to test whether the \gls{svd} tail reduction stabilises the node representation. \\
+Clean-\(X_0\) loss weight, \(\lambda_{x_0}\) & \(10\) & Set to \(0\) to remove direct clean-matrix reconstruction. \\
+Consistency loss weight, \(\lambda_{\mathrm{cons}}\) & \(0.3\) & Set to \(0\) to remove the padded-row consistency penalty. \\
+Balanced node-label loss & Enabled & Disabled to test class reweighting for node-label prediction. \\
+Node-label loss weight, \(\lambda_{\tau_V}\) & \(140\) & Set to \(0\) to remove supervised node-label prediction. \\
+Edge-existence loss weight, \(\lambda_{\mathrm{edge}}\) & \(5\) & Set to \(0\) to remove the edge-existence loss. \\
+Node-existence loss weight, \(\lambda_{\mathrm{exist}}\) & \(5\) & Set to \(0\) to remove explicit node-presence supervision. \\
+Degree loss weight, \(\lambda_{\mathrm{deg}}\) & \(60\) & Set to \(0\) to remove supervised degree prediction. \\
+Edge-supervision flag & Enabled & Disabled to remove pairwise edge-supervision data from the conditional node generator. \\
+MST warm start & Enabled & Disabled to test whether the decoder benefits from maximum-spanning-tree initialisation. \\
+Connectivity constraint & Enabled & Disabled to test the effect of enforcing a single connected component. \\
+Existence projection during sampling & Enabled & Disabled to test whether sampling-time node-presence projection is needed. \\
+Degree projection during sampling & Enabled & Disabled to test whether sampling-time degree projection is needed. \\
+Node-label projection during sampling & Enabled & Disabled to test whether sampling-time label projection is needed. \\
+Continuous denoising of discrete channels & Disabled & Enabled to test whether degree and label channels should be denoised continuously rather than predicted by categorical heads. \\
+\end{xltabular}
 
 \begin{table}[p]
 \centering
@@ -232,7 +292,7 @@ Hyperparameter & Value used for the Conditional DiGress-style model \\
 Exported graph set & \(18{,}000\) synthetic cycle--leg graphs. \\
 DiGress internal split & \(12{,}600\) train, \(1800\) validation, \(3600\) test. \\
 Node and edge classes & Seven node classes and two edge classes, matching the exported synthetic graph representation. \\
-Graph-level condition & Standardized \gls{nsppk}-14 vector, \(16{,}384\) dimensions. \\
+Graph-level condition & Standardised \gls{nsppk}-14 vector, \(16{,}384\) dimensions. \\
 Condition standardisation & Mean and standard deviation fitted on exported training graphs. \\
 Global input channel & \(16{,}385\) dimensions: the graph-level condition plus the DiGress time/noise coordinate. \\
 Model family & Discrete DiGress graph transformer. \\
