@@ -66,9 +66,9 @@ This aim is addressed through the following objectives.
     structural information to guide the generation of discrete graphs.
 
     \item[O4.]
-    To separate the reverse diffusion process over node-level features, edge
-    prediction, and constraint-aware decoding so that the graph generation
-    process can incorporate feasibility constraints.
+    To separate node-level diffusion, edge prediction, and constraint-aware
+    decoding so that the graph generation process is inspectable and can
+    incorporate feasibility constraints.
 
     \item[O5.]
     To develop a statistically grounded evaluation framework that diagnoses
@@ -123,7 +123,7 @@ deterministic, and interpretable, supports efficient dot-product kernel
 evaluation, and allows predictive signals to be traced back to structural
 graph patterns.
 
-\textbf{Graph-conditioned denoising generation.}
+\textbf{Graph-conditioned Diffusion generation.}
 Chapter~\ref{ch:generator} introduces the Graph-Conditioned Diffusion Generator
 (GCDG), a conditional generator that separates continuous node-level denoising
 from discrete graph construction. A graph-level condition vector guides a

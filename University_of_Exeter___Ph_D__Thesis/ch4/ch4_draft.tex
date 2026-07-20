@@ -49,7 +49,7 @@ vector. This produces a generated node table.
 
 Finally, a graph decoder converts the generated node table into a discrete graph.
 The decoder thresholds node existence, extracts target degrees, predicts edge
-probabilities, and solves a constrained adjacency optimization problem before
+probabilities, and solves a constrained adjacency optimisation problem before
 recovering node and edge labels.
 
 
@@ -104,7 +104,15 @@ node-feature dimension. Each row corresponds to one possible node. In the
 implementation, the first columns of each node row have special meanings:
 
 \[
-x_i = [m_i, d_i, \ell_i, r_i],
+x_i
+=
+\left[
+m_i;\,
+g_i;\,
+q_i;\,
+r_i
+\right]
+\in\mathbb{R}^{d_{\mathrm{feat}}},
 \]
 
 where \(m_i \in \{0,1\}\) is the node-existence indicator, \(d_i\) is the node
@@ -381,7 +389,7 @@ classifier or, in the current implementation, from the generator's biaffine edge
 head. The probability matrix is masked so that non-existent nodes cannot receive
 edges, and it is symmetrized for undirected graph decoding.
 
-The final adjacency matrix is obtained by solving a binary optimization problem.
+The final adjacency matrix is obtained by solving a binary optimisation problem.
 Let \(a_{ij}\in\{0,1\}\) indicate whether an undirected edge is selected between
 nodes \(i\) and \(j\). The decoder solves
 
@@ -430,9 +438,9 @@ existence, degree, and label are kept explicitly because they are handled by
 dedicated heads.
 
 The decoder uses NetworkX for graph manipulation and PuLP with the CBC solver
-for constrained adjacency optimization. This makes the final decoding step
+for constrained adjacency optimisation. This makes the final decoding step
 explicit and interpretable: the neural model proposes node and edge quantities,
-while the optimization layer enforces structural consistency.
+while the optimisation layer enforces structural consistency.
 
 \section{Discussion and Limitations}
 \label{sec:generator:discussion}
@@ -444,7 +452,7 @@ while the decoder enforces important graph-level constraints such as node
 existence, degree feasibility, symmetry, and optional connectivity.
 
 However, the method also has limitations. First, decoding requires solving an
-integer optimization problem, which can become expensive for large graphs.
+integer optimisation problem, which can become expensive for large graphs.
 Second, the model depends on the quality of the graph and node vectorizers; if
 important structural information is not captured in these encodings, the
 generator may not recover it. Third, because graphs are padded to a maximum

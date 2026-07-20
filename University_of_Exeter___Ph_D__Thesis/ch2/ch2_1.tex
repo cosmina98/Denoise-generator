@@ -82,7 +82,7 @@ vertex ordering.
   % no labels in (a), like your picture
 \end{scope}
 
-% ---------------- (b) labeled ----------------
+% ---------------- (b) labelled ----------------
 \begin{scope}[xshift=4.2cm]
   \node[vnode] (a2) at (0,1) {};
   \node[vnode] (b2) at (2,1) {};
@@ -124,7 +124,7 @@ vertex ordering.
 \end{scope}
 
 \end{tikzpicture}
-\caption{(a) Unlabelled undirected graph. (b) Fully labeled graph (node and edge labels). (c) Attributed graph with real-valued node features.}
+\caption{(a) Unlabelled undirected graph. (b) Fully labelled graph (node and edge labels). (c) Attributed graph with real-valued node features.}
 \label{fig:graph-types}
 \end{figure}
 In many real-world settings, graph structure alone is insufficient to fully
@@ -135,14 +135,14 @@ applications. This motivates the use of graphs augmented with label or attribute
 information.
 
 A graph whose vertices are assigned discrete labels is referred to as a
-\emph{node-labeled} graph, while a graph whose edges carry labels is termed
-\emph{edge-labeled}. When both vertices and edges are labeled, the graph is
-\emph{discretely labeled}. Figure~\ref{fig:graph-types} illustrates several common
+\emph{node-labelled} graph, while a graph whose edges carry labels is termed
+\emph{edge-labelled}. When both vertices and edges are labelled, the graph is
+\emph{discretely labelled}. Figure~\ref{fig:graph-types} illustrates several common
 graph variants considered in this thesis, including an undirected graph, a fully
-labeled graph, and a graph with real-valued node attributes.
+labelled graph, and a graph with real-valued node attributes.
 
-\begin{definition}[Labeled graph]
-A labeled graph is a graph $G=(V,E)$ equipped with a labeling function
+\begin{definition}[labelled graph]
+A labelled graph is a graph $G=(V,E)$ equipped with a labeling function
 $\ell: V \to \mathcal{L}$ and, optionally, an edge labeling function
 $\ell_E: E \to \mathcal{L}_E$, where $\mathcal{L}$ and $\mathcal{L}_E$ are finite
 sets of discrete labels.
@@ -244,7 +244,7 @@ arbitrary: a relabeling of the vertices should not change the underlying
 graph. Formally, let $n=|V|$ and let $\pi$ be a permutation of $\{1,\dots,n\}$.
 We represent $\pi$ by its permutation matrix $P_\pi\in\{0,1\}^{n\times n}$.
 If $A$ is the adjacency matrix under a given vertex ordering, then the same
-graph under the relabeled ordering has adjacency matrix
+graph under the relabelled ordering has adjacency matrix
 \[
 A^\pi \;=\; P_\pi A P_\pi^\top,
 \]
@@ -406,7 +406,7 @@ compact descriptions.
     Predefined (data-independent) representations specify a fixed mapping from
     graphs to features or similarities (e.g., explicit feature maps, graph
     kernels, or handcrafted structural descriptors), whereas learned
-    representations are obtained through data-driven optimization, including
+    representations are obtained through data-driven optimisation, including
     matrix factorisation approaches and neural graph encoders.
     }
     \label{fig:graph_representation_taxonomy}
@@ -572,7 +572,7 @@ The kernel proposed in this thesis belongs to the class of R-convolution kernels
 and constructs an explicit, sparse feature representation based on structured
 neighbourhood decompositions. This motivates Chapter~\ref{ch:nsppk}, where we develop a
 kernel that preserves interpretability and scalability while directly supporting
-continuous attributes without discretization.
+continuous attributes without discretisation.
 
 
 \subsection{Substructure-Based Graph Kernels}
@@ -795,7 +795,7 @@ than random-walk or graphlet kernels.
 In its standard form, the WL subtree kernel
 is primarily designed for discrete node labels.
 Continuous attributes typically require
-discretization or additional adaptations.
+discretisation or additional adaptations.
 The WL test also characterizes the expressive power of many graph neural
 networks: message-passing GNNs are provably no more discriminative than the
 1-WL isomorphism test in distinguishing non-isomorphic graphs.
@@ -862,7 +862,7 @@ The kernel admits an explicit sparse feature map,
 allowing efficient similarity computation via
 dot products.
 However, continuous attributes are typically
-handled via discretization or hashing,
+handled via discretisation or hashing,
 which may discard fine-grained information.
 
 
@@ -1172,7 +1172,7 @@ discrete labels using randomized hashing, enabling any efficient discrete-label 
 
 Let $G=(V,E)$ be an attributed graph with node attributes
 $a:V\to\mathbb{R}^d$ and let $\mathcal{H}=\{h:\mathbb{R}^d\to\mathbb{N}\}$ be a family of hash
-functions. Sampling $h\sim\mathcal{H}$ induces a discretely labeled graph $h(G)$ by setting
+functions. Sampling $h\sim\mathcal{H}$ induces a discretely labelled graph $h(G)$ by setting
 $\ell(v)=h(a(v))$. Given a discrete base kernel $k_b$ (e.g.\ WL subtree or shortest-path),
 the hash graph kernel averages kernel values over $I$ independent hashings:
 \[
@@ -1201,22 +1201,22 @@ attributes and benefiting from the scalability of explicit computation.
 
 Hash-based kernels are attractive because they inherit (i) the speed and explicit feature maps
 of discrete-label kernels and (ii) a principled way to incorporate continuous attributes via
-randomized discretization. Their main limitation is that performance depends on the chosen
+randomized discretisation. Their main limitation is that performance depends on the chosen
 hash family and the number of iterations $I$: small $I$ can yield high variance, while large
 $I$ increases computation. In addition, because attributes are ultimately reduced to discrete
 codes, fine-grained similarity can be lost compared to methods that operate directly in the
 continuous space. These trade-offs motivate approaches (such as our proposed kernel) that retain
 explicit, scalable feature maps while integrating continuous attributes \emph{directly} rather
-than through stochastic discretization.
+than through stochastic discretisation.
 \subsection{Learned representations}
 
 In contrast to explicit representations, learned representations construct
-graph embeddings through data-driven optimization. Rather than fixing a feature
-map \(\phi\) a priori, these methods learn a parameterized mapping
-\(\phi_\theta : \mathcal{G} \to \mathbb{R}^d\) whose parameters are optimized with
+graph embeddings through data-driven optimisation. Rather than fixing a feature
+map \(\phi\) a priori, these methods learn a parameterised mapping
+\(\phi_\theta : \mathcal{G} \to \mathbb{R}^d\) whose parameters are optimised with
 respect to a training objective, such as prediction accuracy, likelihood, or
 reconstruction quality. Because learned representations are shaped jointly by the data distribution
-and the optimization objective, they are typically more flexible than explicit
+and the optimisation objective, they are typically more flexible than explicit
 representations and can adapt to complex structural and attribute patterns.
 This flexibility, however, comes at the cost of reduced interpretability,
 increased sensitivity to dataset size and bias, and the need for careful
@@ -1285,7 +1285,7 @@ Laplacian, or higher-order similarity matrix) and $\mathcal{R}(Z)$
 is a regularization term. Under spectral formulations, this reduces
 to computing the leading eigenvectors of $M$ or related operators.
 
-One key advantage of matrix factorisation models is their relatively low training data requirement. Since embeddings are obtained through direct matrix decomposition rather than iterative parameter optimization, these methods are particularly effective in low-data regimes, where neural network--based approaches may suffer from overfitting. In addition, by operating on global graph representations such as the Laplacian matrix or transition matrix, matrix factorisation methods are able to capture proximity information between all pairs of nodes. Despite these advantages, matrix factorisation approaches also exhibit several limitations \citep{hoang2023graph}. In particular, their computational and memory complexity scale poorly with graph size \citep{cao2015grarep}, as decomposing large matrices becomes prohibitively expensive for graphs with millions of nodes. Moreover, matrix factorisation models struggle to handle incomplete or partially observed graphs, since missing or unseen values cannot be naturally incorporated into the decomposition process. As a result, these methods often lack generalization capability when graph data are sparse or evolving, motivating the development of neural network--based models that can better extrapolate to unseen nodes and edges \citep{dettmers2018convolutional}.While effective in capturing global structural information, the scalability limitations of matrix decomposition methods motivated the development of
+One key advantage of matrix factorisation models is their relatively low training data requirement. Since embeddings are obtained through direct matrix decomposition rather than iterative parameter optimisation, these methods are particularly effective in low-data regimes, where neural network--based approaches may suffer from overfitting. In addition, by operating on global graph representations such as the Laplacian matrix or transition matrix, matrix factorisation methods are able to capture proximity information between all pairs of nodes. Despite these advantages, matrix factorisation approaches also exhibit several limitations \citep{hoang2023graph}. In particular, their computational and memory complexity scale poorly with graph size \citep{cao2015grarep}, as decomposing large matrices becomes prohibitively expensive for graphs with millions of nodes. Moreover, matrix factorisation models struggle to handle incomplete or partially observed graphs, since missing or unseen values cannot be naturally incorporated into the decomposition process. As a result, these methods often lack generalisation capability when graph data are sparse or evolving, motivating the development of neural network--based models that can better extrapolate to unseen nodes and edges \citep{dettmers2018convolutional}.While effective in capturing global structural information, the scalability limitations of matrix decomposition methods motivated the development of
 sampling-based approaches that approximate structural proximity more efficiently.
 
 \subsubsection{ Random-walk-based methods}
@@ -1307,7 +1307,7 @@ information through reconstruction-based objectives.
 
 LINE \citep{tang2015line} models both first-order proximity between directly
 connected nodes and second-order proximity based on shared neighbourhood
-structure, enabling scalable optimization on large graphs.
+structure, enabling scalable optimisation on large graphs.
 Structural Deep Network Embedding (SDNE) \citep{Wang2016StructuralDN}
 extends this idea by employing a deep autoencoder that jointly preserves
 local adjacency information and reconstructs higher-order neighbourhood
@@ -1348,7 +1348,7 @@ of generalizing to unseen nodes and evolving graph structures.
 \subsubsection{Deep Neural Network Models}
 \label{sec:theory:gnn}
 
-Deep neural network–based models have emerged as a dominant paradigm for graph representation learning, driven by advances in deep learning and their ability to jointly model graph structure and node or edge attributes. These models extend classical embedding techniques by learning representations through parameterized neural architectures, enabling inductive generalization to unseen nodes and graphs. The most prominent class within this family is \emph{Graph Neural Networks} (GNNs), which learn node- or graph-level embeddings by iteratively aggregating and transforming information from local neighbourhoods.
+Deep neural network–based models have emerged as a dominant paradigm for graph representation learning, driven by advances in deep learning and their ability to jointly model graph structure and node or edge attributes. These models extend classical embedding techniques by learning representations through parameterised neural architectures, enabling inductive generalisation to unseen nodes and graphs. The most prominent class within this family is \emph{Graph Neural Networks} (GNNs), which learn node- or graph-level embeddings by iteratively aggregating and transforming information from local neighbourhoods.
 
 \paragraph{Message passing formulation.}
 \begin{figure}[H]
@@ -1427,9 +1427,9 @@ For graph-focused tasks, node embeddings are aggregated into a single graph embe
 where $\mathrm{READOUT}$ may be global sum, mean, or max pooling, attention pooling, or hierarchical pooling mechanisms. The resulting representation $\mathbf{z}_G$ can then be used for graph classification, regression, or downstream prediction tasks.
 
 \paragraph{Training objectives and inductive learning.}
-GNNs can be trained under node, edge, or graph-level supervision. In node classification, a predictor $p_\theta(y_v \mid \mathbf{h}_v^{(L)})$ (e.g., softmax layer) is optimized on labeled nodes. In link prediction, a similarity function or multilayer perceptron operates on pairs $(\mathbf{h}_u^{(L)},\mathbf{h}_v^{(L)})$. In graph classification, predictions are made from $\mathbf{z}_G$.
+GNNs can be trained under node, edge, or graph-level supervision. In node classification, a predictor $p_\theta(y_v \mid \mathbf{h}_v^{(L)})$ (e.g., softmax layer) is optimised on labelled nodes. In link prediction, a similarity function or multilayer perceptron operates on pairs $(\mathbf{h}_u^{(L)},\mathbf{h}_v^{(L)})$. In graph classification, predictions are made from $\mathbf{z}_G$.
 
-A key methodological distinction concerns \emph{transductive} versus \emph{inductive} settings. In transductive learning, all nodes are observed during training but only a subset is labeled. In inductive learning, the model must generalize to previously unseen nodes or entirely new graphs. Because GNNs learn local aggregation rules rather than node-specific parameters, many architectures naturally support inductive generalization.
+A key methodological distinction concerns \emph{transductive} versus \emph{inductive} settings. In transductive learning, all nodes are observed during training but only a subset is labelled. In inductive learning, the model must generalize to previously unseen nodes or entirely new graphs. Because GNNs learn local aggregation rules rather than node-specific parameters, many architectures naturally support inductive generalisation.
 
 
 
@@ -1482,14 +1482,14 @@ Kernels emphasize pairwise comparison by defining an explicit similarity
 function $k(G_i,G_j)$, and are naturally suited to similarity assessment,
 ranking, and kernel-based classification, particularly in small-sample
 regimes. Because they rely on deterministic feature maps and convex
-optimization procedures, kernel methods often provide stronger
+optimisation procedures, kernel methods often provide stronger
 reproducibility guarantees and greater interpretability than deep
 end-to-end models.
 Embedding-based methods, in contrast, produce vector representations of
-individual graphs or nodes through parameterized models trained on
+individual graphs or nodes through parameterised models trained on
 task-specific objectives. These approaches are well suited for large-scale
 prediction, representation transfer, and generative modeling pipelines,
-where joint optimization and inductive generalization are desirable.Importantly, the choice between kernels and learned embeddings is not
+where joint optimisation and inductive generalisation are desirable.Importantly, the choice between kernels and learned embeddings is not
 merely architectural but methodological. Kernels offer explicit control
 over structural inductive bias and feature construction, whereas neural
 embeddings trade explicit structure for adaptive expressivity.
@@ -1600,7 +1600,7 @@ graph structures.
 Since gradients cannot be directly propagated through discrete
 sampling operations, many graph GAN models rely on
 continuous relaxations or reinforcement learning techniques
-to enable optimization.
+to enable optimisation.
 Representative approaches include GraphGAN
 \citep{wang2018graphgan}, which models vertex connectivity
 via adversarial learning; NetGAN \citep{bojchevski2018netgan},
@@ -1702,7 +1702,7 @@ dynamics, which iteratively refines noise using gradient-based
 updates. \textbf{Denoising Diffusion Probabilistic Models} (DDPM)
 \citep{ho2020ddpm} instead formulate diffusion as a discrete-time
 Markov chain inspired by nonequilibrium thermodynamics,
-learning a parameterized reverse process that inverts a fixed
+learning a parameterised reverse process that inverts a fixed
 Gaussian noising schedule. \textbf{Stochastic Differential Equations } (Score SDEs)
 \citep{song2020score} generalize discrete diffusion processes
 to stochastic differential equations (SDEs), modeling the forward
@@ -1749,7 +1749,7 @@ p_\theta(x_{t-1} \mid x_t)
 where the mean and variance are predicted by a neural network with parameters
 $\theta$.
 Training is formulated as variational inference: the parameters $\theta$ are
-optimized by maximizing a variational lower bound on $\log p_\theta(x_0)$, which
+optimised by maximizing a variational lower bound on $\log p_\theta(x_0)$, which
 decomposes into Kullback--Leibler terms between the forward noising process and
 the learned reverse transitions \citep{ho2020ddpm,kullback1951information}.
 Because this objective involves expectations over $q(x_{1:T}\mid x_0)$, it is
@@ -1784,7 +1784,7 @@ data likelihood.
 Diffusion and score-based generative models have become a dominant
 approach for high-fidelity generation across modalities such as images,
 audio, and 3D data \citep{ho2022cascaded,kong2021diffwave,luo2021pointcloud}.
-Their appeal lies in stable optimization objectives, strong empirical
+Their appeal lies in stable optimisation objectives, strong empirical
 sample quality, and flexible conditioning mechanisms.
 However, extending diffusion models to \emph{graph-structured} data
 introduces additional challenges. Graphs combine discrete combinatorial
@@ -1794,7 +1794,7 @@ symmetry, and often require domain-specific validity constraints such as
 connectivity, bounded degree, or chemical valency
 \citep{jo2022gdss,vignac2022digress}.
 
-Existing approaches can be organized according to how the diffusion
+Existing approaches can be organised according to how the diffusion
 process is instantiated over graph representations.
 
 \textbf{Discrete diffusion over categorical structure.}
@@ -1859,7 +1859,7 @@ settings, E(3)-equivariance);
 
 These choices expose characteristic failure modes.
 Continuous relaxations may blur combinatorial structure and require
-post-hoc discretization; direct diffusion over adjacency often
+post-hoc discretisation; direct diffusion over adjacency often
 destroys sparsity; and unconstrained denoising dynamics do not
 naturally enforce global structural constraints such as connectivity
 or degree consistency.
@@ -1881,7 +1881,7 @@ As a result, most evaluation strategies rely on indirect comparisons between rea
 generated samples, using either summary statistics, divergence measures, or learned
 representations.
 
-In domains such as image generation, visual inspection is a useful diagnostic but an unreliable proxy for generalization or downstream utility\citep{theis2016note} ; evaluation should therefore be aligned with the intended application and
+In domains such as image generation, visual inspection is a useful diagnostic but an unreliable proxy for generalisation or downstream utility\citep{theis2016note} ; evaluation should therefore be aligned with the intended application and
 the failure modes of interest. In high-dimensional settings
 several commonly used criteria for generative models---including average log-likelihood,
 proxy likelihood estimates (e.g., Parzen windows), and \emph{visual sample fidelity}---can be
@@ -1982,21 +1982,21 @@ No single metric is sufficient in isolation, and conclusions drawn from individu
 can be unstable under changes in datasets, metrics, or feature extractors.
 
 These limitations motivate a shift in perspective: rather than treating
-evaluation as the optimization of a single numerical score or relying on
+evaluation as the optimisation of a single numerical score or relying on
 representation-dependent heuristics, generative model assessment should be
 formulated as a statistically grounded learning problem. In this thesis,
 we adopt a classifier-based perspective in which evaluation metrics are
 derived from predictive tasks defined on real and generated data.
 By interpreting these metrics as empirical risk estimators within the
 PAC (Probably Approximately Correct) framework, we obtain explicit uncertainty control and finite-sample
-generalization guarantees.
+generalisation guarantees.
 Within this formulation, the central object of interest is not an absolute
 score, but the reliability and stability of relative comparisons between
 models across datasets and evaluation criteria. Model assessment therefore
 naturally reduces to a ranking problem, where conclusions are supported by
 statistical guarantees and robustness analyses rather than isolated scalar
 values. This learning-theoretic perspective enables evaluation procedures
-that are interpretable, resistant to memorization artifacts, and applicable
+that are interpretable, resistant to memorisation artifacts, and applicable
 across data modalities, while explicitly separating distinct failure modes
 such as distributional shift, loss of diversity, and predictive inadequacy. These limitations motivate the statistically grounded evaluation framework
 developed in Chapter~5, which formulates generative model assessment as a
@@ -2007,7 +2007,7 @@ learning problem with uncertainty-controlled model ranking.
 We briefly recall standard learning-theoretic concepts that underpin the
 classifier-based evaluation framework developed later in this thesis.
 Throughout, we consider supervised learning with finite samples and
-probabilistic generalization guarantees in the
+probabilistic generalisation guarantees in the
 Probably Approximately Correct (PAC) framework
 \citep{vapnik1998statistical}.
 These tools allow evaluation procedures based on learned predictors to be
@@ -2032,7 +2032,7 @@ An empirical risk minimizer (ERM) is any
 \hat h_S \in \arg\min_{h\in\mathcal{H}} \widehat R_S(h).
 \]
 
-\paragraph{PAC generalization.}
+\paragraph{PAC generalisation.}
 In the PAC framework, one seeks uniform convergence bounds of the form
 \[
 \Pr\Big(
@@ -2145,7 +2145,7 @@ This property allows concentration bounds on neighbourhood proportions to be
 transferred to entropy-based similarity measures used later in this thesis.
 \paragraph{}
 These learning-theoretic tools will be used in Chapter~\ref{ch:rankgen}
-to derive generalization guarantees for classifier-based evaluation metrics,
+to derive generalisation guarantees for classifier-based evaluation metrics,
 including normalized Train-on-Synthetic-Test-on-Real (TSTR) performance ratios.
 \section{Chapter conclusions}
 \label{sec:related:conclusions}

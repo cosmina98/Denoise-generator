@@ -1,0 +1,58 @@
+\chapter{Theory and Foundations}
+\begin{definition}[Graph]
+A finite graph is a tuple
+\[
+G=(V,E),
+\]
+where \(V=\{v_1,\dots,v_n\}\) is a finite set of vertices. For an undirected
+graph, \(E\) is a set of unordered pairs \(\{u,v\}\) with \(u,v\in V\). For a
+directed graph, \(E\subseteq V\times V\) is a set of ordered pairs
+\((u,v)\).
+\end{definition}
+
+\begin{definition}[Attributed graph]
+An attributed graph is a graph \(G=(V,E)\) equipped with node and (optionally) edge attributes.
+We denote node attributes by a function
+\[
+\mathbf{x}: V \to \mathbb{R}^{d_x}, \qquad v \mapsto \mathbf{x}_v,
+\]
+and edge attributes by a function
+\[
+\mathbf{e}: E \to \mathbb{R}^{d_e}, \qquad (u,v) \mapsto \mathbf{e}_{uv}.
+\]
+For categorical attributes, \(\mathbf{x}_v\) and/or \(\mathbf{e}_{uv}\) may take values in a finite set (e.g., atom/bond types).
+\end{definition}
+
+\begin{definition}[Adjacency matrix]
+Let \(G=(V,E)\) be a graph with \(|V|=n\) and an ordering of vertices.
+The adjacency matrix \(A \in \mathbb{R}^{n \times n}\) is defined by
+\[
+A_{ij} =
+\begin{cases}
+1, & \text{if } \{v_i,v_j\}\in E \text{ for an undirected graph},\\
+1, & \text{if } (v_i,v_j)\in E \text{ for a directed graph},\\
+0, & \text{otherwise.}
+\end{cases}
+\]
+For weighted graphs, \(A_{ij}\) may store an edge weight \(w_{ij}\) instead of a binary indicator.
+\end{definition}
+
+\begin{definition}[Degree matrix]
+The degree matrix \(D \in \mathbb{R}^{n \times n}\) is the diagonal matrix with entries
+\[
+D_{ii} = \sum_{j=1}^n A_{ij}, \qquad D_{ij}=0 \text{ for } i \neq j.
+\]
+For directed graphs, one may analogously define in-degree and out-degree matrices.
+\end{definition}
+
+\begin{definition}[Graph Laplacian]
+The (unnormalised) graph Laplacian is
+\[
+L = D - A.
+\]
+A commonly used normalized variant is the symmetric normalised Laplacian
+\[
+L_{\mathrm{sym}} = I - D^{-1/2} A D^{-1/2},
+\]
+defined when \(D\) is invertible on the support of the graph.
+\end{definition}
