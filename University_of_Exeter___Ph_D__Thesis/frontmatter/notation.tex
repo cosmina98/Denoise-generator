@@ -22,16 +22,17 @@
 
 \notsec{Graphs and matrices}
 $G=(V,E)$ & Graph with node set $V$ and edge set $E$ \\
+$G=(V,E,\tau_V,\tau_E)$ & Labelled graph with node-label function \(\tau_V\) and edge-label function \(\tau_E\) \\
 $V$ & Set of vertices (nodes), $V=\{v_1,\dots,v_n\}$ \\
 $E$ & Set of edges (undirected: $\{u,v\}$; directed: $(u,v)$) \\
 $n$ & Number of nodes in a graph ($n=|V|$) \\
 $m$ & Number of edges in a graph ($m=|E|$) \\
-$A \in \mathbb{R}^{n\times n}$ & Adjacency matrix ($A_{ij}=1$ if $(v_i,v_j)\in E$, else $0$; in weighted graphs, $A_{ij}$ stores the edge weight, while neighbourhoods are defined by edge incidence unless stated otherwise) \\
+$A \in \mathbb{R}^{n\times n}$ & Adjacency matrix ($A_{ij}=1$ if \(v_i\) and \(v_j\) are adjacent, else $0$; in weighted graphs, $A_{ij}$ stores the edge weight, while neighbourhoods are defined by edge incidence unless stated otherwise) \\
 $D \in \mathbb{R}^{n\times n}$ & Degree matrix (diagonal with $D_{ii}=\sum_j A_{ij}$) \\
 $L$ & (Unnormalised) graph Laplacian ($L=D-A$) \\
 $L_{\mathrm{sym}}$ & Symmetric normalised Laplacian ($L_{\mathrm{sym}}=I-D^{-1/2}AD^{-1/2}$, when defined) \\
 $d(u,v)$ & Shortest-path distance between nodes $u$ and $v$ \\
-$\mathcal{N}(v)$ & 1-hop neighbourhood of $v$ ($\mathcal{N}(v)=\{u\in V:(u,v)\in E\}$) \\
+$\mathcal{N}(v)$ & 1-hop neighbourhood of $v$, i.e.\ the set of vertices adjacent to \(v\) \\
 $N_r(v)$ & $r$-hop neighbourhood vertex set of $v$ ($N_r(v)=\{u\in V:d(u,v)\le r\}$); when used as a feature component, it denotes the rooted induced subgraph on this set \\
 $\deg(v)$ & Degree of node $v$ ($\deg(v)=|\mathcal{N}(v)|$) \\
 $\deg^*$ & Maximum degree of $G$ ($\deg^*=\max_{v\in V}\deg(v)$) \\
@@ -47,7 +48,7 @@ $\phi:\mathcal{G}\to\mathbb{R}^d$ & Graph-to-vector representation map (explicit
 $z=\phi(G)\in\mathbb{R}^d$ & Graph embedding of $G$ \\
 
 \notsec{Permutation symmetry}
-$\pi$ & Permutation of $\{1,\dots,n\}$ (vertex relabeling) \\
+$\pi$ & Permutation of $\{1,\dots,n\}$ (vertex relabelling) \\
 $P_\pi \in \{0,1\}^{n\times n}$ & Permutation matrix corresponding to $\pi$ \\
 $A^\pi$ & Relabelled adjacency: $A^\pi = P_\pi A P_\pi^\top$ \\
 $X^\pi$ & Relabelled node features: $X^\pi = P_\pi X$ \\
@@ -103,9 +104,13 @@ $q(x_t\mid x_{t-1})$ & Forward noising transition kernel \\
 \notsec{Graph-conditioned diffusion generator}
 $N_{\max}$ & Maximum number of node rows in the padded node-feature matrix \\
 $K_V=|\mathcal{T}_V|$ & Number of node-label classes \\
+$\mathcal{T}_V,\mathcal{T}_E$ & Node-label and edge-label alphabets \\
 $\tau_V,\tau_E$ & Node-label and edge-label functions, respectively \\
 $C\in\mathbb{R}^{d_C}$ & Graph-level condition vector supplied to the generator \\
+$\hat{C}$ & Re-encoded graph-level vector of a generated graph, computed using the same fitted condition pipeline as \(C\) \\
 $d_C$ & Dimension of the graph-level condition vector \\
+$\phi_{\mathrm{NSPPK}}^{\mathrm{graph}}$ & NSPPK graph-level feature map used as the default condition encoder \\
+$\phi_{\mathrm{NSPPK}}^{\mathrm{node}}$ & NSPPK node-level feature map used to construct node structural rows \\
 $r_i\in\mathbb{R}^{d_r}$ & Node-level structural representation for node row $i$ \\
 $d_r$ & Dimension of the node-level structural representation \\
 $m_i$ & Node-existence indicator for row $i$ \\
@@ -113,15 +118,26 @@ $g_i$ & Degree component or degree class associated with row $i$ \\
 $q_i$ & One-hot node-label vector for row $i$ \\
 $d_{\mathrm{feat}}$ & Dimension of each node-feature row \\
 $X_0$ & Clean padded node-feature matrix \\
+$\hat{X}_0$ & Predicted or reconstructed clean padded node-feature matrix \\
 $X_t$ & Noisy node-feature matrix at noise level or diffusion time $t$ \\
 $\sigma(t)$ & Noise scale at time $t$ \\
+$\sigma_{\min},\sigma_{\max}$ & Minimum and maximum noise levels in the generator schedule \\
 $\Gamma(t)$ & Feature-wise noise-scale matrix used in the corruption process \\
 $Z$ & Node-latent matrix produced by the conditional denoising network \\
+$Z_t$ & Node-latent matrix at diffusion time \(t\), after the current denoising update \\
 $z_i$ & Latent representation of node row $i$ \\
+$B_{\mathrm{cont}}$ & Feature mask selecting coordinates trained by the continuous denoising loss \\
 $B_{\mathrm{match}}$ & Feature mask used in matched-row training loss \\
 $\pi^\star$ & Minimum-cost row assignment used for matched-row loss \\
 $P^{\mathrm{edge}}$ & Predicted edge-probability matrix passed to the graph decoder \\
 $A_t^{\mathrm{state}}$ & Provisional edge-state matrix used by the joint edge-state variant \\
+$\mu$ & Momentum parameter used when updating the provisional edge state during sampling \\
+$M_t^{\mathrm{mol}}$ & Deterministic molecular-state matrix used by the chemistry-aware variant \\
+$\lambda_{\mathrm{mol}}$ & Weight controlling injection of molecular-state features \\
+$\mathcal{P}_{\mathrm{sup}}$ & Set of supervised unordered node pairs used for pairwise edge losses \\
+$\mathcal{L}_{\bullet}$ & Loss component whose subscript identifies the supervised or auxiliary objective \\
+$\lambda_{\bullet}$ & Non-negative weight applied to the corresponding loss component \\
+$\eta_{\mathrm{num}}$ & Small numerical stabiliser used in masked loss denominators \\
 
 \notsec{Learning theory and evaluation}
 $\mathcal{X},\mathcal{Y}$ & Input and label spaces \\

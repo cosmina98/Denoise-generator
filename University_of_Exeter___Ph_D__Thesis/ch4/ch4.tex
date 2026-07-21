@@ -53,8 +53,7 @@ by the condition.
     ]{images/diffusion/pipeine_generator.pdf}
     }
     \caption{
-    Overview of the proposed graph-conditioned denoising
-    generator. The input graph is encoded into a padded node-level
+    Overview of GCDG. The input graph is encoded into a padded node-level
     representation \(X_0\) and a graph-level condition vector \(C\). During
     training, a time \(t\) is sampled and noise is added to \(X_0\) according to
     a feature-wise schedule, producing \(X_t\). The conditional transformer
@@ -293,8 +292,9 @@ an implementation choice rather than an intrinsic graph property. Two node
 feature matrices that differ only by a simultaneous permutation of their rows
 can represent the same labelled graph. The generator therefore uses two
 training-time devices to reduce sensitivity to arbitrary row order. First, node
-rows can be randomly permuted during training. Second, the clean-matrix loss can
-be evaluated after matching predicted rows to target rows.
+rows can be randomly permuted during training. Second, the clean-\(X_0\)
+reconstruction loss can be evaluated after matching predicted rows to target
+rows.
 
 The matching step is a linear assignment problem. Given a predicted clean node
 feature matrix \(\hat X_0\) and a target matrix \(X_0\), define a pairwise cost
@@ -731,14 +731,14 @@ rather than padding, \(B_{\mathrm{cont}}\) masks out feature dimensions handled
 by separate categorical heads, such as node existence, degree, and label, and
 \(\eta_{\mathrm{num}}>0\) is a small numerical stabiliser. The terms
 \(\varepsilon_i\) and \(\hat{\varepsilon}_i\) denote the sampled Gaussian noise
-and the predicted noise for row \(i\), respectively. The clean-matrix estimate is
+and the predicted noise for row \(i\), respectively. The clean-\(X_0\) estimate is
 
 \[
     \hat{X}_0 = X_t - \Gamma(t)\odot \hat{\varepsilon}.
 \]
 
-An optional direct clean-matrix loss can be used to anchor the reverse diffusion
-process:
+An optional direct clean-\(X_0\) reconstruction loss can be used to anchor the
+reverse diffusion process:
 
 \[
     \mathcal{L}_{x_0}
@@ -1081,10 +1081,10 @@ This comparison motivates the baselines used in the experiments. Conditional
 DiGress tests a direct discrete graph-diffusion mechanism supplied with the
 same graph-level condition vector. The class-conditional \gls{vgae} tests a
 latent graph decoder baseline, but it receives only the requested class and not
-the full graph-level descriptor. The proposed generator tests the intermediate
-position: condition-guided diffusion over node-level representations followed
-by learned pairwise prediction and constrained graph decoding. The advantage of
-this staged design is that node counts, degree histograms, label histograms,
+the full graph-level descriptor. GCDG tests the intermediate position:
+condition-guided diffusion over node-level representations followed by learned
+pairwise prediction and constrained graph decoding. The advantage of this
+staged design is that node counts, degree histograms, node-label histograms,
 edge probability matrices, and decoder outputs can be examined separately. The
 cost is that final graph quality depends jointly on the condition
 representation, the denoiser, and the decoder. Implementation settings and
@@ -1144,7 +1144,7 @@ a discrete graph diffusion model over categorical node and edge states
 \citep{vignac2022digress}. In this comparison, the graph-level condition is
 placed in the DiGress global feature channel, and the model samples graphs by
 running the learned discrete reverse process. This baseline receives the same
-held-out graph-level condition vectors as the proposed generator. The second
+held-out graph-level condition vectors as GCDG. The second
 baseline is a direct class-conditional \gls{vgae}, adapted from variational graph
 autoencoder graph generators \citep{kipf2016vgae,simonovsky2018graphvae}.
 It is trained on the same graph split and evaluated with the same requested
@@ -1201,20 +1201,24 @@ read as frequencies. The lower panel therefore reports the corresponding
 aggregate counts out of \(100\) generated graphs per requested cycle size.
 
 The aggregate counts show that the three models fail in different ways. The
-proposed generator has the most even structure distribution across requested
-cycle sizes and produces relatively few samples in the \emph{other} bucket. Its
-errors are therefore often still graph-like cycle--leg outputs with an incorrect
-cycle size, rather than structurally incoherent graphs. This is particularly
-visible for the smaller requested cycles: the proposed generator decodes cycle
-sizes three and four more reliably than the DiGress-style baseline, both in the
-structure-only panel and in the strict structure-plus-label panel. DiGress, by
-contrast, is very strong once the requested cycle is larger: for cycle sizes
-six, seven, and eight it produces many exact structure-and-label matches.
-However, it places most cycle-three and cycle-four requests into the
-\emph{other} bucket, showing that the same model struggles to preserve
-small-cycle structure under these conditions. The class-conditional \gls{vgae}
-baseline mostly produces outputs in the \emph{other} bucket and has no strict
-successes, indicating that class-level conditioning alone is not enough for this
+GCDG has the broadest coverage of the cycle--leg family and
+produces relatively few samples in the \emph{other} bucket. Its advantage is
+clearest for the smallest requested cycles. For requested cycle sizes \(3\) and
+\(4\), GCDG produces \(52\) and \(31\) exact structural matches, respectively,
+compared with \(2\) and \(9\) for conditional DiGress. The same pattern appears
+in the strict structure-plus-label counts: GCDG produces \(39\) and \(25\)
+strict successes for cycle sizes \(3\) and \(4\), whereas conditional DiGress
+produces \(2\) and \(9\).
+
+Conditional DiGress shows the opposite behaviour. It places most cycle-three
+and cycle-four requests in the \emph{other} bucket, but becomes very accurate
+for larger requested cycles. For cycle sizes \(6\), \(7\), and \(8\), it
+produces \(55\), \(96\), and \(84\) strict successes, respectively. GCDG still
+often generates cycle--leg-like graphs for these larger conditions, but its
+mass is spread across neighbouring cycle-size buckets rather than concentrated
+on the requested size. The class-conditional \gls{vgae} baseline mostly
+produces outputs in the \emph{other} bucket and has no strict successes,
+indicating that class-level conditioning alone is not enough for this
 graph-level conditional task.
 
 This experiment isolates the role of the conditioning mechanism. A model can
@@ -1270,8 +1274,7 @@ condition-versus-re-encoding scatter plots.
         keepaspectratio
     ]{images/diffusion/example_generated_my_generator.png}
     \caption{
-    RDKit visualisations of QM9-like molecules generated by the proposed
-    graph-conditioned diffusion generator from held-out
+    RDKit visualisations of QM9-like molecules generated by GCDG from held-out
     graph-level molecular conditions. These examples are qualitative samples;
     aggregate distributional comparisons are reported separately.
     }
@@ -1303,21 +1306,107 @@ Only the generated-versus-held-out-condition comparison is shown.
 \end{table}
 
 Table~\ref{tab:qm9-generated-vs-heldout-mmd} shows complementary behaviour.
-The proposed generator more closely matches structural graph statistics such as
+GCDG more closely matches structural graph statistics such as
 density, mean bond degree, and bond count. Conditional DiGress more closely matches
 molecular-size and chemistry-related descriptors such as atom count, molecular
 weight, and QED.
 
-\subsection{Ablations}
+\subsection{Synthetic Ablations}
+\label{sec:generator:synthetic-ablations}
 
-The ablation experiments examine which parts of the generator are responsible
-for different behaviours. The main ablations concern the dimensionality of the
-condition vector, condition-adaptive node-count and histogram controls,
-continuous versus discrete corruption of categorical feature blocks, the joint
-edge-state variant, and the chemistry-aware molecular extensions. Molecular
-valency projection and dynamic molecular features are reported separately from
-the dataset-agnostic generator because they inject domain knowledge that is not
-available for arbitrary graph datasets.
+The synthetic cycle--leg task also provides a controlled setting for testing
+which parts of the generator are needed for conditional graph construction. The
+baseline setting is the Baseline GCDG configuration shown in the left column of
+Figure~\ref{fig:generator:req-vs-cycle-combined} and specified in
+Appendix Table~\ref{tab:synthetic-cycle-leg-proposed-hyperparameters}. Each ablation changes one
+component where possible and is evaluated using the same \(100\) decoded graphs
+per requested cycle size. The exact cycle rate counts graphs with the requested
+cycle size, while the stricter metric additionally requires the node labels to
+match the required structural roles. The Baseline GCDG row therefore corresponds to
+the diagonal counts in the GCDG panels of
+Figure~\ref{fig:generator:req-vs-cycle-combined}: \(169\) exact structural
+matches and \(131\) strict structure-and-label matches out of \(600\) decoded
+graphs.
+
+\begin{table}[p]
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}Xrr@{}}
+\toprule
+Configuration & Exact cycle rate & Strict rate \\
+\midrule
+Baseline GCDG & 0.282 & 0.218 \\
+No degree-histogram control & 0.058 & 0.038 \\
+No node-count control & 0.170 & 0.028 \\
+No node-count and node-label histogram controls & 0.165 & 0.010 \\
+Matched-row loss enabled & 0.225 & 0.120 \\
+Joint edge-state variant enabled & 0.155 & 0.017 \\
+Random row permutation enabled & 0.248 & 0.168 \\
+No distance supervision, with balanced degree loss & 0.257 & 0.160 \\
+Balanced degree loss enabled & 0.275 & 0.217 \\
+No balanced edge loss & 0.280 & 0.197 \\
+No node-feature dimensionality reduction & 0.175 & 0.005 \\
+No clean-\(X_0\) reconstruction loss & 0.143 & 0.032 \\
+No denoising-consistency loss & 0.297 & 0.235 \\
+No balanced node-label loss & 0.250 & 0.162 \\
+No node-label loss & 0.172 & 0.022 \\
+No edge-existence loss & 0.125 & 0.008 \\
+No node-existence loss & 0.217 & 0.120 \\
+No degree loss & 0.163 & 0.007 \\
+No edge supervision & 0.197 & 0.005 \\
+No MST warm start & 0.203 & 0.095 \\
+No connectivity constraint & 0.223 & 0.172 \\
+No existence projection during sampling & 0.188 & 0.082 \\
+No degree projection during sampling & 0.228 & 0.175 \\
+No node-label projection during sampling & 0.193 & 0.050 \\
+Degree and node-label channels denoised continuously & 0.243 & 0.155 \\
+\bottomrule
+\end{tabularx}
+\caption{
+Ablation results on the synthetic cycle--leg task. The Baseline GCDG row uses
+the configuration specified in
+Appendix Table~\ref{tab:synthetic-cycle-leg-proposed-hyperparameters}. Each
+rate is computed over \(600\) decoded graphs:
+\(100\) samples for each of the six requested cycle sizes. Exact cycle rate is
+the fraction of decoded graphs that recover the requested cycle size, while
+strict rate is the fraction that also recover the correct cycle and leg role
+labels. Two rows change coupled settings: the node-count and node-label
+histogram controls are disabled together, and the distance-supervision
+ablation also enables balanced degree loss. These rows should therefore be
+interpreted as combined sensitivity checks.
+}
+\label{tab:generator:synthetic-ablation-results}
+\end{table}
+
+Table~\ref{tab:generator:synthetic-ablation-results} shows that conditioning
+controls and supervised structural heads have different effects. Removing the
+degree-histogram control causes the largest drop in exact cycle recovery,
+showing that the graph-level condition alone is not sufficient unless the
+decoder is also supplied with a stable degree-composition target. Removing
+node-count control, node-label supervision, degree supervision, or the
+clean-\(X_0\) reconstruction loss mainly damages the strict score, which means
+that the generator can still produce cycle-like graphs but loses the alignment
+between structure and labels.
+
+The edge-supervision ablation is particularly informative. When edge
+supervision is disabled, the learned pairwise edge-probability head is no
+longer available and decoding falls back to degree-based edge scores. The
+resulting graphs remain structurally feasible in a coarse sense: in the
+recorded run all decoded graphs were connected, and the mean number of edges
+matched the mean number of nodes in each requested category. However, the strict
+rate falls from \(0.218\) to \(0.005\). This indicates that degree and
+connectivity constraints can still force the decoder towards unicyclic graphs,
+but they do not replace learned pairwise information about where the cycle and
+leg edges should be placed or how labels should align with that structure.
+
+Some components are less critical in this synthetic setting. Removing the
+denoising-consistency loss slightly improves both reported rates, suggesting
+that this auxiliary term is not necessary for the cycle--leg benchmark. Balanced
+degree and edge losses also have small effects relative to the main structural
+supervision terms. These ablations support the design used in the main
+experiment: GCDG works best when the graph-level condition is coupled to
+explicit node-count, degree, label, and pairwise-edge predictions before the
+constraint-aware decoder constructs the final discrete graph.
 
 \section{Limitations}
 \label{sec:generator:limitations}
@@ -1365,17 +1454,17 @@ The synthetic cycle--leg experiment shows why this staging is useful. The model
 does not merely generate plausible graphs; it can be evaluated against explicit
 conditional requirements such as requested cycle size and role-label placement.
 The comparison with conditional DiGress and a class-conditional \gls{vgae}
-baseline shows that different generators fail in different ways: DiGress is
-strong on larger requested cycles, while the proposed generator gives a more
-even distribution over requested cycle sizes and fewer samples outside the
-intended cycle--leg family.
+baseline shows that different generators fail in different ways: GCDG performs
+best on the smallest requested cycles and produces fewer samples outside the
+intended cycle--leg family, whereas DiGress is much stronger on the larger
+requested cycles.
 
 The QM9 experiment extends the same conditioning mechanism to molecular graphs.
 In this chapter, the molecular results are reported through RDKit
 visualisations and scalar-property \gls{mmd} comparisons between generated
 molecules and the held-out molecules that supplied their conditions. 
-results should be interpreted as a conditional distributional comparison rather
-than as a complete molecular benchmark. They show that the proposed generator
+The results should be interpreted as a conditional distributional comparison
+rather than as a complete molecular benchmark. They show that GCDG
 matches some structural graph statistics closely, whereas the conditional
 DiGress-style model better matches molecular-size and chemistry-related
 descriptors such as atom count, molecular weight, and QED.

@@ -6,11 +6,19 @@
 
 Graphs arise across a wide range of scientific and technological domains. Molecules can be represented as atoms connected by chemical bonds; citation networks as documents linked by references; social networks as individuals connected through interactions; and biological systems as proteins, genes, or metabolites related through functional processes. More generally, many complex systems are naturally described as collections of entities together with the relationships among them. In these settings, the graph is not merely a convenient storage format: its connectivity is an essential part of the object being modelled.
 
-This thesis studies three closely connected problems in graph machine learning: how to construct graph representations that are robust and interpretable, how to generate new graphs under graph-level conditions, and how to evaluate graph generative models in a statistically reliable manner. Although these problems are often considered separately, they are fundamentally interdependent. A generative model can only be guided by information that has been represented effectively; generated graphs can only be trusted when their quality and task-relevant utility can be assessed; and such assessments depend on representations that expose the structural properties of interest.
+This thesis studies three closely connected problems in graph machine learning:
+how to construct graph representations that expose structural information, how
+to generate new graphs under graph-level conditions, and how to evaluate graph
+generative models with explicit reliability checks. Although these problems are
+often considered separately, they influence one another. A generative model can
+only be guided by information that has been represented effectively; generated
+graphs can only be trusted when their quality and task-relevant utility can be
+assessed; and such assessments depend on representations that expose the
+structural properties of interest.
 
-Graph data present challenges that distinguish them from vectors, images, and sequences. Graphs have no canonical ordering of their nodes, may vary substantially in size, and often contain irregular local structures\citep{bronstein2017geometric}. Their defining properties may depend on small motifs, extended neighbourhoods, or long-range connectivity across distant regions. These characteristics motivate expressive learning methods such as graph neural networks and graph diffusion models, but they also complicate interpretability, robustness, and evaluation.
+Graph data present challenges that distinguish them from vectors, images, and sequences. Graphs have no canonical ordering of their nodes, may vary substantially in size, and often contain irregular local structures~\citep{bronstein2017geometric}. Their defining properties may depend on small motifs, extended neighbourhoods, or long-range connectivity across distant regions. These characteristics motivate expressive learning methods such as graph neural networks and graph diffusion models, but they also complicate interpretability, robustness, and evaluation.
 
-Graph kernels provide a complementary approach to learning from graph-struc\-tured data. Over the past two decades, numerous kernels have been developed to compare graphs through structural components such as walks, paths, neighbourhoods, subtrees, and graphlets\citep{nikolentzos2021graph}. Their explicit and deterministic representations can offer strong interpretability and sample efficiency. However, many classical graph kernels were designed primarily for discrete node labels and therefore handle continuous attributes only through discretisation or other indirect mechanisms. Neural approaches can learn more flexible representations from attributed data, but their behaviour may be sensitive to optimisation and architectural choices and can be more difficult to inspect.
+Graph kernels provide a complementary approach to learning from graph-struc\-tured data. Over the past two decades, numerous kernels have been developed to compare graphs through structural components such as walks, paths, neighbourhoods, subtrees, and graphlets~\citep{nikolentzos2021graph}. Their explicit and deterministic representations can support feature-level inspection and sample efficiency. However, many classical graph kernels were designed primarily for discrete node labels and therefore handle continuous attributes only through discretisation or other indirect mechanisms. Neural approaches can learn more flexible representations from attributed data, but their behaviour may be sensitive to optimisation and architectural choices and can be more difficult to inspect.
 
 This thesis is motivated by the view that reliable graph machine learning should combine the strengths of these traditions. It develops explicit representations that retain meaningful graph structure, conditional generative models whose outputs can be guided by graph-level information, and evaluation protocols that distinguish genuine structural and task-relevant utility from superficial similarity.
 
@@ -37,19 +45,21 @@ single supervised prediction task. In particular, it considers:
     score.
 \end{enumerate}
 
-These three components form the methodological arc of the thesis. First, an
-explicit representation is developed for attributed graphs. Second, this
-representation is used as a graph-level condition for a denoising graph
-generator. Third, a general evaluation framework is introduced to diagnose
-whether generated data is useful, distributionally aligned, and statistically
-reliable.
+These three components form the methodological arc of the thesis, but they
+should not be read as a single mandatory end-to-end system. The contributions
+are operationally independent: NSPPK is a graph representation method, GCDG is
+a graph-conditioned generator, and RankGen is a general diagnostic evaluation
+framework. They address successive decisions that arise in graph generative
+modelling: what graph information is represented, how such information can
+condition generation, and how generated data should be assessed.
 
 \section{Aim, Objectives, and Research Questions}
 \label{sec:intro:questions}
 
-The overall aim of this thesis is to develop robust and interpretable methods
-for graph representation, graph-conditioned generation, and statistically
-grounded evaluation of graph generative models.
+The overall aim of this thesis is to develop graph representation,
+graph-conditioned generation, and diagnostic evaluation methods that are
+explicit about structural information, conditioning behaviour, and the
+reliability of empirical comparisons.
 
 This aim is addressed through the following objectives.
 
@@ -71,10 +81,11 @@ This aim is addressed through the following objectives.
     incorporate feasibility constraints.
 
     \item[O5.]
-    To develop a statistically grounded evaluation framework that diagnoses
-    multiple generative failure modes, including poor task fidelity,
+    To develop a diagnostic evaluation framework that compares generative
+    models with reliability checks and diagnoses multiple generative failure
+    modes, including poor task fidelity,
     distributional mismatch, low augmentation value, local structural
-    mismatch, and memorization.
+    mismatch, and memorisation.
 
     \item[O6.]
     To compare generative models using uncertainty-aware summaries and
@@ -90,7 +101,7 @@ These objectives lead to the following research questions.
 
     \item[RQ2.]
     How can graph-level structural information be used to condition a
-    diffusion-based generator for labeled graphs?
+    diffusion-based generator for labelled graphs?
 
     \item[RQ3.]
     How can graph generative models be evaluated in a way that distinguishes
@@ -106,6 +117,32 @@ These questions are deliberately connected. The first question concerns the
 representation of graph structure. The second uses such representations as
 conditioning signals for generation. The third and fourth address the problem
 of deciding whether generated samples should be trusted.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}l l l X@{}}
+\toprule
+Research question & Objectives & Chapter & Evidence \\
+\midrule
+RQ1 & O1--O2 & Chapter~\ref{ch:nsppk} &
+Kernel construction, feature analysis, classification experiments, scalability
+tests, and interpretability analysis. \\
+RQ2 & O3--O4 & Chapter~\ref{ch:generator} &
+Synthetic cycle--leg generation, conditional decoding diagnostics, ablations,
+and QM9 molecular experiments. \\
+RQ3 & O5 & Chapter~\ref{ch:rankgen} &
+Quality, Utility, Indistinguishability, Similarity, and memorisation-sensitive
+diagnostics across controlled perturbations and generative benchmarks. \\
+RQ4 & O6 & Chapter~\ref{ch:rankgen} &
+PAC-style reliability checks, repeated resampling, quantile summaries, and
+model ranking analyses. \\
+\bottomrule
+\end{tabularx}
+\caption{Mapping between research questions, objectives, thesis chapters, and
+the main evidence used to answer each question.}
+\label{tab:intro:rq-objective-map}
+\end{table}
 
 \section{Thesis Contributions}
 \label{sec:intro:contributions}
@@ -143,12 +180,17 @@ statistical confidence from fine-grained model comparison. The framework is
 validated across controlled perturbations and generative tasks involving
 molecular graphs, images, and open-domain text.
 
-Together, these contributions support the central claim of this thesis: graph
-generation should be treated as a pipeline of representation, synthesis, and
-diagnosis. Generated graphs should not be judged using a single measure of
-plausibility, but according to whether they preserve relevant structure,
-satisfy domain constraints, support downstream use, and remain reliable under
-statistically grounded evaluation.
+Together, these contributions support a qualified central claim: graph
+generation benefits from treating representation, synthesis, and diagnosis as
+connected design decisions. This is a methodological perspective rather than a
+claim that the thesis evaluates one fully integrated system throughout. In the
+reported generator experiments, graph-level descriptors are used to condition
+GCDG; RankGen is developed as a broader diagnostic framework for evaluating
+generated data rather than as an optimiser inside the generator. Generated
+graphs should therefore not be judged using a single measure of plausibility,
+but according to whether they preserve relevant structure, satisfy domain
+constraints, support downstream use, and pass the reliability checks required
+by the evaluation setting.
 
 \section{Thesis Structure}
 \label{sec:intro:structure}

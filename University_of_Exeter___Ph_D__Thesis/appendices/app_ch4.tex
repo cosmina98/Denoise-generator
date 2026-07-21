@@ -26,7 +26,7 @@ Node structural feature dimension, \(d_r\) & Dimension of the node-level structu
 Node feature dimension, \(d_{\mathrm{feat}}=2+K_V+d_r\) & Width of each row \(x_i=[m_i,g_i,q_i,r_i]\) in the node feature matrix. \\
 Node feature scaling & Scales node-feature coordinates before denoising. The scaler is fitted on real node rows from the training graphs, after optional node-feature dimensionality reduction, and is then kept fixed. Padding rows are excluded from fitting, and the existence component is kept as a binary mask. \\
 Random row permutation & Optional training-time augmentation that permutes the rows of the padded node feature matrix, so the denoiser is not tied to one arbitrary node ordering. \\
-Matched-row loss & Optional clean-matrix alignment loss. A Hungarian assignment matches predicted rows to target rows using selected continuous structural coordinates, and the reconstruction loss is evaluated after this matching. This affects training only; it is not a sampling-time decoder. \\
+Matched-row loss & Optional clean-\(X_0\) alignment loss. A Hungarian assignment matches predicted rows to target rows using selected continuous structural coordinates, and the reconstruction loss is evaluated after this matching. This affects training only; it is not a sampling-time decoder. \\
 Graph-level condition, \(C\in\mathbb{R}^{d_C}\) & Continuous graph-level vector used to condition generation. In the thesis experiments this is usually produced by a graph-kernel encoder and may be reduced in dimension. \\
 Condition scaling & Standardises graph-level conditions before they are supplied to the denoiser. The scaler is fitted on the training conditions and then kept fixed for validation, held-out conditions, and generated graphs. \\
 Condition dimensionality reduction & Optional fixed transformation applied to high-dimensional graph conditions. In the reported experiments this is typically truncated \gls{svd}: the projection is fitted once on the training conditions and then reused unchanged. \\
@@ -58,15 +58,15 @@ Existence projection during sampling & Projects the generated existence channel 
 Degree projection during sampling & Projects generated degree information to valid degree classes during sampling. \\
 Node-label projection during sampling & Projects generated node-label information to valid label classes during sampling. \\
 Noise-prediction loss weight, \(\lambda_{\varepsilon}\) & Weight on the continuous denoising loss \(\mathcal{L}_{\varepsilon}\). \\
-Clean-matrix loss weight, \(\lambda_{x_0}\) & Optional weight on direct reconstruction of the clean node feature matrix \(\hat{X}_0\). \\
-Condition-to-\(X_0\) prior weight, \(\lambda_{\mathrm{cond}\to x_0}\) & Optional weight for a direct prediction from the graph-level condition to the clean node feature matrix. \\
+Clean-\(X_0\) reconstruction loss weight, \(\lambda_{x_0}\) & Optional weight on direct reconstruction of the clean node feature matrix \(\hat{X}_0\). \\
+Condition-to-\(X_0\) prior weight, \(\lambda_{C\rightarrow X_0}\) & Optional weight for a direct prediction from the graph-level condition to the clean node feature matrix. \\
 Node-existence loss weight, \(\lambda_{\mathrm{exist}}\) & Weight on the binary classification task for whether a node row corresponds to a real node. \\
 Degree loss weight, \(\lambda_{\mathrm{deg}}\) & Weight on the categorical degree-class prediction task. \\
 Balanced degree loss & Optional class reweighting for the degree-class loss, used to reduce domination by frequent degree classes. \\
 Node-label loss weight, \(\lambda_{\tau_V}\) & Weight on the categorical node-label prediction task. \\
 Balanced node-label loss & Optional class reweighting for the node-label loss, used when node-label classes are imbalanced. \\
 Consistency loss weight, \(\lambda_{\mathrm{cons}}\) & Weight on the penalty discouraging non-existent padded rows from carrying non-zero continuous information. \\
-Continuous denoising of discrete channels & Optional variant in which degree and node-label channels are also treated as continuous denoising targets. When disabled, these quantities are predicted by categorical heads. \\
+Continuous denoising of degree and node-label channels & Optional variant in which degree and node-label channels are also treated as continuous denoising targets. When disabled, these quantities are predicted by categorical heads. \\
 \bottomrule
 \end{tabularx}
 \caption{Denoising and supervised node-level objective parameters.}
@@ -82,11 +82,11 @@ Continuous denoising of discrete channels & Optional variant in which degree and
 \toprule
 Parameter / symbol & Role \\
 \midrule
-Edge-supervision flag & Enables pairwise supervision for edge existence using sampled or full node pairs. \\
-Supervised edge fraction & Fraction of possible node pairs used to train the edge-existence classifier when subsampling is used. \\
+Edge supervision & Enables pairwise supervision for edge existence using sampled or full node pairs. \\
+Supervised edge-pair fraction & Fraction of possible node pairs used to train the edge-existence classifier when subsampling is used. \\
 Balanced edge loss & Reweights positive and negative edge examples to reduce domination by non-edges. \\
 Edge-existence loss weight, \(\lambda_{\mathrm{edge}}\) & Weight on binary edge-existence supervision. \\
-Clean-edge loss weight, \(\lambda_{\mathrm{clean\_edge}}\) & Optional extra edge-existence supervision evaluated on clean node representations. \\
+Clean-edge loss weight, \(\lambda_{\mathrm{clean\text{-}edge}}\) & Optional extra edge-existence supervision evaluated on clean node representations. \\
 Edge-label loss weight, \(\lambda_{\tau_E}\) & Weight on categorical edge-label prediction when edge labels are present. \\
 Distance loss weight, \(\lambda_{\mathrm{dist}}\) & Weight on optional binned graph-distance prediction between node pairs. \\
 Distance-edge blend & Optional blending of distance-derived edge evidence into edge generation. \\
@@ -165,7 +165,7 @@ Molecular state matrix, \(M_t^{\mathrm{mol}}\in\mathbb{R}^{N_{\max}\times 5}\) &
 
 The synthetic constraint-controlled experiments in
 Section~\ref{sec:generator:experiments} use the same balanced graph family for
-the proposed generator, the conditional DiGress-style comparison, and the direct
+Baseline GCDG, the conditional DiGress-style comparison, and the direct
 \gls{vgae} baseline. All three methods use the same \(18{,}000\)-graph
 synthetic training split and are evaluated with the same requested cycle-size
 categories and sample counts.
@@ -197,7 +197,7 @@ Evaluation protocol & The graph-conditioned methods generate one graph per held-
 \footnotesize
 \begin{tabularx}{\textwidth}{@{}p{0.38\textwidth}X@{}}
 \toprule
-Hyperparameter & Value used for the proposed generator \\
+Hyperparameter & Value used for Baseline GCDG \\
 \midrule
 Training graphs & \(18{,}000\) synthetic cycle--leg graphs. \\
 Graph-level condition & \gls{nsppk}-14 vector, \(16{,}384\) dimensions. \\
@@ -208,16 +208,35 @@ Node-latent dimension & \(128\). \\
 Maximum training epochs & \(5000\). \\
 Batch size & \(32\). \\
 Reverse denoising steps at evaluation & \(100\). \\
-Direct clean-matrix reconstruction weight & \(\lambda_{x_0}=10\). \\
-Condition-to-\(\hat X_0\) prior weight & \(0\). \\
-Condition-to-\(\hat X_0\) sampling blend & \(0\). \\
+Matched-row loss & Disabled. \\
+Random row permutation & Disabled. \\
+Clean-\(X_0\) reconstruction loss weight & \(\lambda_{x_0}=10\). \\
+Condition-to-\(X_0\) prior weight & \(\lambda_{C\rightarrow X_0}=0\). \\
+Condition-to-\(X_0\) sampling blend & \(0\). \\
+Consistency loss weight & \(\lambda_{\mathrm{cons}}=0.3\). \\
+Node-existence loss weight & \(\lambda_{\mathrm{exist}}=5\). \\
+Degree loss weight & \(\lambda_{\mathrm{deg}}=60\). \\
+Balanced degree loss & Disabled. \\
+Node-label loss weight & \(\lambda_{\tau_V}=140\). \\
+Balanced node-label loss & Enabled. \\
 Node-count control & Enabled. \\
 Degree-histogram control & Enabled. \\
 Node-label histogram control & Enabled. \\
+Existence projection during sampling & Enabled. \\
+Degree projection during sampling & Enabled. \\
+Node-label projection during sampling & Enabled. \\
 Edge supervision & Enabled. \\
 Supervised edge-pair fraction & \(0.30\). \\
+Edge-existence loss weight & \(\lambda_{\mathrm{edge}}=5\). \\
+Balanced edge loss & Enabled. \\
+Distance supervision & Enabled. \\
+Distance loss weight & \(\lambda_{\mathrm{dist}}=1\). \\
+Clean-edge loss weight & \(\lambda_{\mathrm{clean\text{-}edge}}=0\). \\
 Edge-generation mode & Direct pairwise edge prediction. \\
-Joint edge state & Disabled in the reference synthetic configuration. The joint edge-state parameters were only used in the corresponding ablation. \\
+Connectivity constraint & Enabled. \\
+MST warm start & Enabled. \\
+Continuous denoising of degree and node-label channels & Disabled; these channels are predicted through categorical heads. \\
+Joint edge-state variant & Disabled in the Baseline GCDG configuration. The joint edge-state parameters were only used in the corresponding ablation. \\
 Joint edge message-passing steps & \(3\), when the joint edge-state variant is enabled. \\
 Joint edge deletion probability & \(0.10\), when the joint edge-state variant is enabled. \\
 Joint edge addition probability & \(0.02\), when the joint edge-state variant is enabled. \\
@@ -225,18 +244,18 @@ Joint edge momentum & \(0.70\), when the joint edge-state variant is enabled. \\
 Joint edge threshold & \(0.40\), when the joint edge-state variant is enabled. \\
 \bottomrule
 \end{tabularx}
-\caption{Hyperparameters for the graph-conditioned diffusion generator in the synthetic cycle--leg experiment.}
+\caption{Baseline GCDG hyperparameters for the synthetic cycle--leg experiment. This is the tuned configuration used for the left column of Figure~\ref{fig:generator:req-vs-cycle-combined} and for the Baseline GCDG row of the ablation study.}
 \label{tab:synthetic-cycle-leg-proposed-hyperparameters}
 \end{table}
 
 \begin{xltabular}{\textwidth}{@{}p{0.34\textwidth}p{0.24\textwidth}X@{}}
 \caption{Ablation variables for the synthetic cycle--leg experiment. The
-reference setting is the tuned configuration used in the main synthetic
-comparison.}
+baseline setting is the Baseline GCDG configuration reported in
+Table~\ref{tab:synthetic-cycle-leg-proposed-hyperparameters}.}
 \label{tab:synthetic-cycle-leg-ablation-variables}\\
 
 \toprule
-Variable & Reference value & Ablated value or interpretation \\
+Variable & Baseline value & Ablated value or interpretation \\
 \midrule
 \endfirsthead
 
@@ -245,7 +264,7 @@ Variable & Reference value & Ablated value or interpretation \\
 Table~\thetable\ continued from the previous page
 }\\
 \toprule
-Variable & Reference value & Ablated value or interpretation \\
+Variable & Baseline value & Ablated value or interpretation \\
 \midrule
 \endhead
 
@@ -256,31 +275,77 @@ Variable & Reference value & Ablated value or interpretation \\
 \bottomrule
 \endlastfoot
 
-Conditioned degree-histogram control & Enabled & Disabled to test whether final degree-composition projection is needed. \\
-Conditioned node-count control & Enabled & Disabled to test whether the generator can infer graph size without an explicit condition-to-count model. \\
-Conditioned label-histogram control & Enabled & Disabled to test whether label-composition projection is needed. In the recorded notebook this was disabled together with node-count control, so it should be interpreted as a combined ablation. \\
-Matched-row loss & Disabled & Enabled to test whether Hungarian row alignment improves clean-matrix supervision. \\
+Degree-histogram control & Enabled & Disabled to test whether the final predicted degree-composition projection is needed. \\
+Node-count control & Enabled & Disabled to test whether the generator can recover graph size without an explicit condition-to-count model. \\
+Node-label histogram control & Enabled & Disabled to test whether node-label composition projection is needed. In the recorded notebook this was disabled together with node-count control, so it should be interpreted as a combined ablation. \\
+Matched-row loss & Disabled & Enabled to test whether Hungarian row alignment improves clean-\(X_0\) reconstruction. \\
 Joint edge-state variant & Disabled & Enabled to test whether a provisional adjacency state during denoising improves generation. \\
 Random row permutation & Disabled & Enabled as training-time row-order augmentation. \\
 Distance supervision & Enabled & Disabled to test the contribution of binned pairwise-distance prediction. In the recorded notebook this was combined with enabling balanced degree loss. \\
 Balanced degree loss & Disabled & Enabled to test class reweighting for degree prediction. \\
 Balanced edge loss & Enabled & Disabled to test the effect of edge/non-edge class reweighting. \\
 Node-feature dimensionality reduction & Enabled & Disabled to test whether the \gls{svd} tail reduction stabilises the node representation. \\
-Clean-\(X_0\) loss weight, \(\lambda_{x_0}\) & \(10\) & Set to \(0\) to remove direct clean-matrix reconstruction. \\
+Clean-\(X_0\) reconstruction loss weight, \(\lambda_{x_0}\) & \(10\) & Set to \(0\) to remove direct clean-\(X_0\) reconstruction. \\
 Consistency loss weight, \(\lambda_{\mathrm{cons}}\) & \(0.3\) & Set to \(0\) to remove the padded-row consistency penalty. \\
 Balanced node-label loss & Enabled & Disabled to test class reweighting for node-label prediction. \\
 Node-label loss weight, \(\lambda_{\tau_V}\) & \(140\) & Set to \(0\) to remove supervised node-label prediction. \\
 Edge-existence loss weight, \(\lambda_{\mathrm{edge}}\) & \(5\) & Set to \(0\) to remove the edge-existence loss. \\
 Node-existence loss weight, \(\lambda_{\mathrm{exist}}\) & \(5\) & Set to \(0\) to remove explicit node-presence supervision. \\
 Degree loss weight, \(\lambda_{\mathrm{deg}}\) & \(60\) & Set to \(0\) to remove supervised degree prediction. \\
-Edge-supervision flag & Enabled & Disabled to remove pairwise edge-supervision data from the conditional node generator. \\
+Edge supervision & Enabled & Disabled to remove supervised pairwise edge targets. In this ablation the learned pairwise edge-probability head is unavailable, so decoding uses degree-based fallback edge scores. \\
 MST warm start & Enabled & Disabled to test whether the decoder benefits from maximum-spanning-tree initialisation. \\
 Connectivity constraint & Enabled & Disabled to test the effect of enforcing a single connected component. \\
 Existence projection during sampling & Enabled & Disabled to test whether sampling-time node-presence projection is needed. \\
 Degree projection during sampling & Enabled & Disabled to test whether sampling-time degree projection is needed. \\
-Node-label projection during sampling & Enabled & Disabled to test whether sampling-time label projection is needed. \\
-Continuous denoising of discrete channels & Disabled & Enabled to test whether degree and label channels should be denoised continuously rather than predicted by categorical heads. \\
+Node-label projection during sampling & Enabled & Disabled to test whether sampling-time node-label projection is needed. \\
+Continuous denoising of degree and node-label channels & Disabled & Enabled to test whether degree and node-label channels should be denoised continuously rather than predicted by categorical heads. \\
 \end{xltabular}
+
+\begin{table}[p]
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}Xrrrr@{}}
+\toprule
+Configuration & Exact count & Exact rate & Strict count & Strict rate \\
+\midrule
+Baseline GCDG & 169 & 0.282 & 131 & 0.218 \\
+No degree-histogram control & 35 & 0.058 & 23 & 0.038 \\
+No node-count control & 102 & 0.170 & 17 & 0.028 \\
+No node-count and node-label histogram controls & 99 & 0.165 & 6 & 0.010 \\
+Matched-row loss enabled & 135 & 0.225 & 72 & 0.120 \\
+Joint edge-state variant enabled & 93 & 0.155 & 10 & 0.017 \\
+Random row permutation enabled & 149 & 0.248 & 101 & 0.168 \\
+No distance supervision, with balanced degree loss & 154 & 0.257 & 96 & 0.160 \\
+Balanced degree loss enabled & 165 & 0.275 & 130 & 0.217 \\
+No balanced edge loss & 168 & 0.280 & 118 & 0.197 \\
+No node-feature dimensionality reduction & 105 & 0.175 & 3 & 0.005 \\
+No clean-\(X_0\) reconstruction loss & 86 & 0.143 & 19 & 0.032 \\
+No denoising-consistency loss & 178 & 0.297 & 141 & 0.235 \\
+No balanced node-label loss & 150 & 0.250 & 97 & 0.162 \\
+No node-label loss & 103 & 0.172 & 13 & 0.022 \\
+No edge-existence loss & 75 & 0.125 & 5 & 0.008 \\
+No node-existence loss & 130 & 0.217 & 72 & 0.120 \\
+No degree loss & 98 & 0.163 & 4 & 0.007 \\
+No edge supervision & 118 & 0.197 & 3 & 0.005 \\
+No MST warm start & 122 & 0.203 & 57 & 0.095 \\
+No connectivity constraint & 134 & 0.223 & 103 & 0.172 \\
+No existence projection during sampling & 113 & 0.188 & 49 & 0.082 \\
+No degree projection during sampling & 137 & 0.228 & 105 & 0.175 \\
+No node-label projection during sampling & 116 & 0.193 & 30 & 0.050 \\
+Degree and node-label channels denoised continuously & 146 & 0.243 & 93 & 0.155 \\
+\bottomrule
+\end{tabularx}
+\caption{
+Synthetic cycle--leg ablation results. Counts are successes out of \(600\)
+decoded graphs, corresponding to \(100\) samples for each of the six requested
+cycle sizes. Exact count/rate measure recovery of the requested cycle size.
+Strict count/rate additionally require the decoded labels to match the cycle
+and leg roles. Two rows change coupled settings: the node-count and node-label
+histogram controls are disabled together, and the distance-supervision ablation
+also enables balanced degree loss.
+}
+\label{tab:synthetic-cycle-leg-ablation-results}
+\end{table}
 
 \begin{table}[p]
 \centering
@@ -360,8 +425,8 @@ Generated samples for evaluation & \(100\) direct latent samples per requested c
 \section{QM9 Molecular Generation Experiment Settings}
 \label{app:qm9-molecular-settings}
 
-The molecular experiments compare the proposed graph-conditioned diffusion
-generator with a conditional DiGress-style molecular generator under the same
+The molecular experiments compare GCDG with a conditional DiGress-style
+molecular generator under the same
 graph-level conditioning protocol. Both models use the same condition
 construction. First, an \gls{nsppk} feature vector is computed for each
 molecular graph. Because this feature vector is high-dimensional, a truncated
@@ -410,12 +475,12 @@ Condition preservation & Re-encode each generated molecule using the same fitted
 \end{table}
 
 \begin{xltabular}{\textwidth}{@{}p{0.34\textwidth}X@{}}
-\caption{Hyperparameters for the proposed graph-conditioned diffusion generator
+\caption{Hyperparameters for GCDG
 in the QM9 molecular experiment.}
 \label{tab:qm9-proposed-generator-hyperparameters}\\
 
 \toprule
-Hyperparameter & Value used for the proposed generator on QM9 \\
+Hyperparameter & Value used for GCDG on QM9 \\
 \midrule
 \endfirsthead
 
@@ -424,7 +489,7 @@ Hyperparameter & Value used for the proposed generator on QM9 \\
 Table~\thetable\ continued from the previous page
 }\\
 \toprule
-Hyperparameter & Value used for the proposed generator on QM9 \\
+Hyperparameter & Value used for GCDG on QM9 \\
 \midrule
 \endhead
 
@@ -492,14 +557,14 @@ held-out QM9 decoding run. \\
 Noise range &
 \(\sigma_{\min}=0.01\), \(\sigma_{\max}=0.1\), and final sampling noise \(0\). \\
 
-Continuous reconstruction weight &
-\(\lambda_{\mathrm{recon}}=0\). \\
+Noise-prediction loss weight &
+\(\lambda_{\varepsilon}=0\). \\
 
-Direct clean-matrix weight &
+Clean-\(X_0\) reconstruction loss weight &
 \(\lambda_{x_0}=10\). \\
 
 Condition-to-\(X_0\) prior &
-Disabled with \(\lambda_{\mathrm{cond}\rightarrow x_0}=0\) and sampling
+Disabled with \(\lambda_{C\rightarrow X_0}=0\) and sampling
 blend \(0\). \\
 
 Node-existence loss weight &
@@ -510,17 +575,17 @@ Degree loss weight &
 cap \(2\). \\
 
 Node-label loss weight &
-\(\lambda_{\mathrm{label}}=140\), with class balancing enabled and
+\(\lambda_{\tau_V}=140\), with class balancing enabled and
 class-weight cap \(2\). \\
 
 Edge-existence loss weight &
 \(\lambda_{\mathrm{edge}}=5\), with edge/non-edge balancing enabled. \\
 
 Clean-edge auxiliary loss &
-Disabled, \(\lambda_{\mathrm{clean\ edge}}=0\). \\
+Disabled, \(\lambda_{\mathrm{clean\text{-}edge}}=0\). \\
 
 Edge-label loss weight &
-\(\lambda_{\mathrm{edge\ label}}=140\). \\
+\(\lambda_{\tau_E}=140\). \\
 
 Distance supervision &
 Enabled with maximum distance class \(3\) and loss weight
@@ -530,14 +595,14 @@ Consistency loss &
 \(\lambda_{\mathrm{cons}}=0.3\). \\
 
 Discrete channel handling &
-Degree and atom-label channels are predicted by categorical heads;
+Degree and node-label (atom-label) channels are predicted by categorical heads;
 continuous denoising of these channels is disabled. \\
 
 Discrete corruption mode &
 Absorbing-mask corruption for categorical channels. \\
 
 Noise scaling for discrete features &
-Degree and label noise factors set to \(10\). \\
+Degree and node-label noise factors set to \(10\). \\
 
 Projection during sampling &
 Existence, degree, and atom-label projections are enabled during sampling;
@@ -546,16 +611,16 @@ final categorical projection is used at \(\sigma=0\). \\
 Row handling &
 Random row permutation and matched-row loss enabled. \\
 
-Conditioned node-count control &
+Node-count control &
 Enabled. \\
 
-Conditioned degree-histogram control &
+Degree-histogram control &
 Enabled. \\
 
-Conditioned label-histogram control &
+Node-label histogram control &
 Enabled. \\
 
-Joint edge state &
+Joint edge-state variant &
 Enabled during denoising. \\
 
 Joint edge corruption &
@@ -597,7 +662,7 @@ DiGress internal split & \(34{,}580\) train, \(4940\) validation, and \(9880\) t
 Split seed & \(1234\) for the DiGress internal train/validation/test split. \\
 Node classes & Four atom classes: carbon, fluorine, nitrogen, and oxygen. \\
 Edge classes & Five edge classes: no edge, single, double, triple, and aromatic. \\
-Graph-level condition & Same standardised \gls{nsppk}-14/\gls{svd}-128 condition vectors used by the proposed generator, computed with the same projection fitted on the training graphs. \\
+Graph-level condition & Same standardised \gls{nsppk}-14/\gls{svd}-128 condition vectors used by GCDG, computed with the same projection fitted on the training graphs. \\
 Condition injection & The 128-dimensional condition vector is appended to the DiGress global feature channel \(y\). \\
 Extra features & DiGress molecular and structural extra features enabled. \\
 Observed input dimensions & With extra features enabled, the model receives \(12\) node channels, \(5\) edge channels, and \(141\) global channels. \\

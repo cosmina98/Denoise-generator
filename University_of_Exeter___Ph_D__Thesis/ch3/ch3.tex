@@ -8,7 +8,7 @@ Chapter~\ref{ch:theory} established the theoretical foundations of graph
 representation learning and highlighted the complementary strengths of
 predefined kernel methods and learned neural embeddings.
 In particular, kernel-based representations offer deterministic feature
-construction, strong interpretability, and favorable behavior in low-data
+construction, transparent feature maps, and favourable behaviour in low-data
 regimes, while neural approaches provide greater expressive flexibility at the
 cost of increased training complexity and reduced transparency.
 
@@ -48,11 +48,11 @@ embeddings, enabling kernel evaluation through efficient dot-product
 computation. Under fixed parameters, feature extraction scales near-linearly
 with graph size and the overall procedure is naturally parallelisable.
 
-Empirical evaluation demonstrates that NSPPK achieves a strong balance between
-accuracy, robustness, and computational efficiency. Across benchmark datasets
-with continuous attributes, it attains a top average rank among graph kernels
-and frequently matches or surpasses GNN baselines, while remaining
-training-free, deterministic, and interpretable.
+The empirical sections test whether this explicit construction can remain
+accurate, scalable, and interpretable on attributed graph benchmarks. The
+analysis focuses on predictive performance, runtime behaviour, feature
+inspection, robustness to perturbations, and larger citation-network case
+studies.
 
 The remainder of this chapter is organised as follows.
 Section~\ref{sec:relatedwork} reviews the graph-kernel literature most closely
@@ -61,7 +61,9 @@ Section~\ref{sec:notation} introduces the NSPPK-specific notation and core
 objects.
 Section~\ref{sec:method} presents the feature construction and hashing scheme.
 Section~\ref{sec:complexity} analyses computational complexity.
+Section~\ref{sec:Diagonal} reports a controlled robustness analysis.
 Section~\ref{sec:experiments} reports empirical results.
+Section~\ref{sec:nsppk:discussion-limitations} discusses limitations.
 Section~\ref{sec:Conclusion} concludes the chapter.
 
 \section{Related Work}
@@ -393,6 +395,7 @@ U_H^{r',d}(u,v)
 H^q\!\left(
 [\overline{B}_{0,r'}(u,v),\dots,\overline{B}_{d,r'}(u,v)]
 \right).
+\]
 
 \textbf{Final structural feature vector.}
 The structural NSPPK vector is obtained by accumulating the hash values of all
@@ -853,7 +856,7 @@ experiment is provided in Appendix~\ref{appendix:qm9}.
   \caption{Hash-size trade-offs: (a) predictive performance and (b) computational cost.}
   \label{fig:bits_tradeoff}
 \end{figure}
-\subsection{Diagonal Dominance and Robustness: Quantitative Analysis}
+\section{Diagonal Dominance and Robustness: Quantitative Analysis}
 \label{sec:Diagonal}
 
 A central pathology in similarity-based learning on graphs is the phenomenon of
@@ -1001,11 +1004,11 @@ graph classification benchmarks: \emph{ENZYMES},
 provided in Appendix~\ref{appendix:datasets}.
 
 
-\textbf{Baselines.}  
-Kernel methods: GraphHopper (GH)~\citep{feragen2013scalable}, Propagation Kernel (PK)~\citep{neumann2016propagation}, Subgraph Matching (SM)~\citep{kriege2012subgraph}, Multiscale Laplacian (ML)~\citep{kondor2016multiscalelaplaciangraphkernel}, Shortest Path (SP)~\citep{borgwardt2005shortest}, HSSPK-SP/WL~\citep{morris2016fasterkernelsgraphscontinuous}, WWL~\citep{togninalli2019wasserstein}, linearFGW~\citep{nguyen2023linearfgw}, and NP~\citep{fang2023neighborhoodpreserving}, plus discretized NSPPK and WL.  
-All kernels use SVM classifiers (LIBSVM~\citep{chang2011libsvm}).  
+\textbf{Baselines.}
+Kernel methods: GraphHopper (GH)~\citep{feragen2013scalable}, Propagation Kernel (PK)~\citep{neumann2016propagation}, Subgraph Matching (SM)~\citep{kriege2012subgraph}, Multiscale Laplacian (ML)~\citep{kondor2016multiscalelaplaciangraphkernel}, Shortest Path (SP)~\citep{borgwardt2005shortest}, HSSPK-SP/WL~\citep{morris2016fasterkernelsgraphscontinuous}, WWL~\citep{togninalli2019wasserstein}, linearFGW~\citep{nguyen2023linearfgw}, and NP~\citep{fang2023neighborhoodpreserving}, plus discretised NSPPK and WL.
+All kernels use SVM classifiers (LIBSVM~\citep{chang2011libsvm}).
 
-\textbf{Neural baselines}: DGCNN~\citep{zhang2018endtoend}, GraphSAGE~\citep{hamilton2017graphsage}, InfoGraph~\citep{sun2019infograph}, GIN~\citep{xu2019powerful}, GraphCL~\citep{you2020graph}, AttentiveFP (FNP)~\citep{gasteiger2020directional}, PNA~\citep{corso2020pna}, and PDF~\citep{yang2023bettergraphrepresentationlearning}.  
+\textbf{Neural baselines}: DGCNN~\citep{zhang2018endtoend}, GraphSAGE~\citep{hamilton2017graphsage}, InfoGraph~\citep{sun2019infograph}, GIN~\citep{xu2019powerful}, GraphCL~\citep{you2020graph}, AttentiveFP (FNP)~\citep{gasteiger2020directional}, PNA~\citep{corso2020pna}, and PDF~\citep{yang2023bettergraphrepresentationlearning}.
 
 \textbf{Protocol.}
 We follow the fair evaluation setup of~\citep{errica2020fair}: 10-fold cross-validation with 10\% validation from training data.
@@ -1013,15 +1016,15 @@ Kernels: SVM with $C$ tuned on validation; multiple hyperparameter configuration
 GNNs: trained up to 1000 epochs with early stopping; tuned via validation.
 The hyperparameter grids used for model selection for both neural and kernel baselines are reported in Appendix~\ref{appendix:hyperparameters}.
 
-\textbf{Controls.}  
-We also test (i) \emph{attributes only}, where graphs are represented by summed node attributes, and (ii) \emph{structure only}, where attributes are removed (Appendix~\ref{appendix:no_attr}).  
+\textbf{Controls.}
+We also test (i) \emph{attributes only}, where graphs are represented by summed node attributes, and (ii) \emph{structure only}, where attributes are removed (Appendix~\ref{appendix:no_attr}).
 
- \textbf{NSPPK}: fixed configuration across all datasets ($R{=}1,D{=}4,R'{=}1$, 16-bit hashing); no per-dataset tuning.  
-For comparison with kernels we use LIBSVM, and for GNNs we use NSPPK features with XGBoost.  
+ \textbf{NSPPK}: fixed configuration across all datasets ($R{=}1,D{=}4,R'{=}1$, 16-bit hashing); no per-dataset tuning.
+For comparison with kernels we use LIBSVM, and for GNNs we use NSPPK features with XGBoost.
 All kernel runtimes, including NSPPK, are measured on a single CPU core for comparability.
 
-\textbf{Runtime.}  
-Kernel methods run on a single CPU core; GNNs run on CPUs with library-level multithreading. All experiments used a SLURM-managed cluster with NVIDIA A100 GPUs, Intel Xeon Gold 5317 CPUs (24 cores), and 64 GB RAM. Kernels exceeding 24h per fold are reported as timeouts.  
+\textbf{Runtime.}
+Kernel methods run on a single CPU core; GNNs run on CPUs with library-level multithreading. All experiments used a SLURM-managed cluster with NVIDIA A100 GPUs, Intel Xeon Gold 5317 CPUs (24 cores), and 64 GB RAM. Kernels exceeding 24h per fold are reported as timeouts.
 
 
 
@@ -1100,8 +1103,8 @@ NSPPK feat.\ (XGBoost) & \textbf{\mps{98.67}{2.21}} & \textbf{\mps{83.74}{4.14}}
 
 Against \emph{kernels}, NSPPK achieves the best accuracy on four out of six
 benchmarks (\emph{SYNTHETICnew}, \emph{BZR}, \emph{COX2},\emph{DHFR}) and the best overall
-average rank (1.75 vs >4 for other kernels). 
-Under a conservative single-core evaluation setting, NSPPK delivers a favorable
+average rank (1.75 vs >4 for other kernels).
+Under a conservative single-core evaluation setting, NSPPK delivers a favourable
 efficiency--accuracy trade-off among kernel methods. Very lightweight baselines
 such as GraphCL or PNA achieve lower runtimes (average rank $7.50$), but NSPPK
 remains substantially more efficient than expressive graph kernels such as GH or
@@ -1110,7 +1113,7 @@ XGBoost, NSPPK delivers the strongest overall accuracy among kernel-based
 methods.
 Detailed runtime measurements are reported in
 Tables~\ref{tab:with_attr_runtime_kernels} and~\ref{tab:with_attr_runtime_nns}.
-Overall, NSPPK provides a favorable efficiency--accuracy trade-off,
+Overall, NSPPK provides a favourable efficiency--accuracy trade-off,
 achieving substantially higher accuracy than lightweight kernels while
 remaining significantly more efficient than high-expressivity methods.
 Additional visualizations of the accuracy--time trade-off across datasets
@@ -1178,7 +1181,7 @@ PDF & 20.59\,s & 57.84\,s & 21.10\,s & 20.13\,s & 61.43\,s & 76.70\,s & 44.13\,s
 \end{adjustbox}
 \end{table}
 
-\textbf{Results} 
+\textbf{Results}
 
 To complement the per-dataset accuracy and runtime tables, we summarise
 performance across datasets using \emph{critical difference (CD) diagrams} based
@@ -1327,7 +1330,7 @@ $p = k/(n-1)$.
 All graphs were assigned trivial, identical labels and no node attributes so as
 to isolate the effect of graph density.
 We measured the  time required to extract NSPPK features using our
-standard configuration $(R=1, D=4, R'=1, nbits=11)$ 
+standard configuration $(R=1, D=4, R'=1, nbits=11)$
 For each $k$, a single graph instance was generated and timed.
 Table~\ref{tab:density_sensitivity} reports NSPPK feature extraction time as a
 function of the average degree.
@@ -1368,7 +1371,7 @@ minutes to process a dense $300$-node graph.
 \subsection{Experiments on Citation Networks}
 \label{sec:citation}
 
-To evaluate whether NSPPK generalizes beyond molecular graphs,
+To evaluate whether NSPPK generalises beyond molecular graphs,
 we conducted additional experiments on three widely used citation
 network benchmarks: \textbf{Cora}, \textbf{CiteSeer}, and \textbf{PubMed}.
 These graphs differ substantially from molecular datasets, exhibiting
@@ -1395,21 +1398,21 @@ Table~\ref{tab:citation_results} reports macro-averaged ROC--AUC scores.
 \begin{adjustbox}{max width=\textwidth}
 \begin{tabular}{lcccccccc}
 \toprule
-Dataset 
-& GraphSAGE 
-& GAT 
-& APPNP 
-& GCN 
-& SGC 
-& NSPPK+XGB 
-& MLP 
+Dataset
+& GraphSAGE
+& GAT
+& APPNP
+& GCN
+& SGC
+& NSPPK+XGB
+& MLP
 & GIN \\
 \midrule
-CiteSeer 
+CiteSeer
 & 0.9422 & 0.9454 & 0.9310 & 0.9257 & 0.9432 & 0.9253 & 0.9247 & 0.9084 \\
-Cora 
+Cora
 & 0.9846 & 0.9874 & 0.9884 & 0.9840 & 0.9874 & 0.9636 & 0.9502 & 0.9669 \\
-PubMed 
+PubMed
 & 0.9759 & 0.9615 & 0.9622 & 0.9659 & 0.9396 & 0.9686 & 0.9714 & 0.9663 \\
 \bottomrule
 \end{tabular}
@@ -1418,7 +1421,7 @@ PubMed
 
 Despite using the same hyperparameters as in the molecular experiments,
 NSPPK achieves competitive performance across all citation datasets.
-These results demonstrate that NSPPK generalizes well to non-molecular
+These results show that NSPPK generalises well to non-molecular
 domains and heterogeneous graph topologies while maintaining predictable
 runtime and deterministic feature extraction.
 
@@ -1478,6 +1481,35 @@ Appendix~\ref{appendix:task95}.
   PDF, and AttentiveFP (FNP).}
   \label{fig:large_experiment}
 \end{figure*}
+\section{Discussion and Limitations}
+\label{sec:nsppk:discussion-limitations}
+
+The results show that NSPPK can provide competitive graph-level features while
+remaining deterministic and explicit. Its main advantage is that each active
+dimension is tied to a hashed structural pattern involving anchor
+neighbourhoods, connector paths, and attribute information. This supports
+feature inspection: important coordinates can be traced back to the kinds of
+substructures that produced them. The interpretation is therefore local to the
+constructed feature map and the downstream model coefficients; it should not
+be read as a complete causal explanation of a prediction.
+
+The method also has practical limits. Feature extraction depends on the chosen
+radii, anchor distances, and hash size. Larger values can capture richer
+structure, but they also increase runtime and sparsity, especially on dense
+graphs. Hashing makes the representation compact and efficient, but distinct
+patterns may collide when the hash space is too small. The robustness analysis
+therefore complements the classification results by testing whether the kernel
+continues to produce meaningful similarities under controlled perturbations,
+rather than assuming that sparsity alone is harmless.
+
+Finally, NSPPK is a predefined representation. It does not learn which
+substructures are useful before feature extraction; this choice is made by the
+kernel design and its parameters. This can improve sample efficiency and
+auditability, but it also means that task-specific adaptation is left to the
+downstream learner. Hybrid approaches that use NSPPK features as inputs,
+regularisers, or conditioning descriptors for neural graph models remain a
+natural direction for future work.
+
 \section{Conclusion}
 \label{sec:Conclusion}
 
@@ -1490,26 +1522,21 @@ structural encoding.
 
 NSPPK provides deterministic and training-free feature extraction, enabling
 scalable graph learning with standard supervised models. Empirically, it
-achieves state-of-the-art performance among graph kernels and competitive
-results with modern graph neural networks, despite avoiding representation
-learning or end-to-end optimisation. These results demonstrate that carefully
-designed explicit representations can rival learned embeddings while offering
-superior interpretability and computational transparency. Because NSPPK
-features correspond to explicit hashed subgraph patterns, predictive signals
-can be traced back to concrete structural motifs, supporting model
-interpretability and auditing.
+achieves the best average rank among the tested graph kernels and competitive
+results against the neural baselines considered in this chapter, despite
+avoiding representation learning or end-to-end optimisation. These results show
+that carefully designed explicit representations can remain useful alongside
+learned embeddings. Because NSPPK features correspond to hashed subgraph
+patterns, predictive signals can be inspected by retrieving the structural
+patterns associated with important feature coordinates.
 
 Within the broader perspective of this thesis, NSPPK advances the
 \emph{representation} component of graph learning. The next chapter complements
 this direction by studying \emph{generation}, focusing on diffusion-based graph
 models that learn probabilistic representations of graph distributions. While
-NSPPK emphasizes explicit structural encoding, diffusion models prioritize
+NSPPK emphasises explicit structural encoding, diffusion models prioritise
 flexible data-driven synthesis, together forming complementary approaches to
 graph learning.
 
 Future work includes hybrid kernel–neural models and extensions to dynamic or
 temporal graphs.
-
-
-
-

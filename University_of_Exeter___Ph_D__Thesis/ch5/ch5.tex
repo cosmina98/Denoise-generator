@@ -1,4 +1,4 @@
-\chapter{RankGen: Statistically Robust Evaluation of Generative Models}
+\chapter{RankGen: Diagnostic Evaluation of Generative Models}
 \label{ch:rankgen}
 
 \section{Introduction and Motivation}
@@ -21,7 +21,7 @@ remains an open challenge.
 
 Many widely used evaluation metrics are brittle, easy to manipulate, and often
 poorly aligned with the practical value of generated data. Standard metrics may
-assign high scores to models that memorize training data, fail to generalize,
+assign high scores to models that memorise training data, fail to generalise,
 or provide little benefit in downstream predictive tasks. As a result, model
 selection based solely on such scores can lead to unreliable conclusions and
 potentially unsafe deployment decisions.
@@ -74,10 +74,10 @@ for a binary classification task. Marker shapes denote classes.}
 These challenges highlight a broader issue: generative model evaluation is
 inherently multi-dimensional. A generator may preserve task-relevant signal,
 yet still be easy to distinguish from real data. It may align globally with the
-data distribution but fail to provide useful new information. 
+data distribution but fail to provide useful new information.
 
 Figure
-\ref{fig:generated-results} illustrates several such failure modes.Each panel shows real data (blue/green) and generated data (red/orange) for a binary classification task, with marker shapes indicating class labels. (i) \emph{Quality (poor task fidelity):} Generated samples lie in high-density regions of the real distribution but fail to produce a decision boundary that generalizes, leading to poor classifier performance when trained on synthetic data. (ii) \emph{Utility (no added value):} Generated samples closely replicate the real data; augmenting the training set with them neither improves performance nor alters the decision boundary. (iii) \emph{Indistinguishability (easy to distinguish):} A subtle artefact (e.g., a shift in a single feature) allows a discriminator to separate real from generated samples, despite their apparent global similarity. (iv) \emph{Similarity (local mismatch):} Local neighbourhoods are dominated by either real or generated samples, indicating poor mixing due to structural differences or mode collapse; this is captured by neighbourhood entropy even when global distributions overlap.
+\ref{fig:generated-results} illustrates several such failure modes. Each panel shows real data (blue/green) and generated data (red/orange) for a binary classification task, with marker shapes indicating class labels. (i) \emph{Quality (poor task fidelity):} Generated samples lie in high-density regions of the real distribution but fail to produce a decision boundary that generalises, leading to poor classifier performance when trained on synthetic data. (ii) \emph{Utility (no added value):} Generated samples closely replicate the real data; augmenting the training set with them neither improves performance nor alters the decision boundary. (iii) \emph{Indistinguishability (easy to distinguish):} A subtle artefact (e.g., a shift in a single feature) allows a discriminator to separate real from generated samples, despite their apparent global similarity. (iv) \emph{Similarity (local mismatch):} Local neighbourhoods are dominated by either real or generated samples, indicating poor mixing due to structural differences or mode collapse; this is captured by neighbourhood entropy even when global distributions overlap.
 \section{Limitations of Existing Evaluation Approaches}
 \label{sec:rankgen:limitations}
 
@@ -150,22 +150,35 @@ Scalar metrics are simple but brittle, distributional diagnostics are more
 informative but representation-dependent, and classifier-based evaluations
 align with practical utility but lack statistical guarantees.
 
-These limitations motivate the need for evaluation frameworks that are
-diagnostic, statistically grounded, and capable of distinguishing between
-different failure modes of generative models. In the next section we therefore
-reformulate generative model evaluation as a learning problem, which provides
-the conceptual foundation for the RankGen framework.
+These limitations motivate the RankGen framework developed in this chapter:
+an evaluation protocol that uses predictive probes to separate different
+failure modes, attaches reliability checks to the resulting estimates, and
+uses robust summaries when comparing generators.
 
-\section{Overview of This Chapter's Contributions}
-To address these challenges, this chapter introduces \textbf{RankGen}, a classifier-based evaluation framework that reframes generative model assessment as a collection of predictive probes targeting complementary failure modes. Rather than relying on a single scalar metric, RankGen evaluates generators along multiple axes. The framework defines four metrics: \emph{Quality} (signal fidelity), \emph{Utility} (added predictive value beyond real data), \emph{Indistinguishability} (two-sample alignment), and \emph{Similarity} (local structural mixing between real and generated samples). Each metric is paired with a PAC-style generalisation bound, transforming empirical performance estimates into statements that hold with high probability. RankGen evaluates candidate generators through a two-stage protocol: first, models that violate statistical reliability bounds are filtered out; second, the remaining models are ranked using robust quantile-based summaries that account for variability across repeated evaluations. A composite score, termed \emph{Exchangeability}, aggregates the resulting signals to capture both predictive usefulness and distributional alignment. 
+\section{RankGen Contribution and Chapter Structure}
+To address these challenges, this chapter introduces \textbf{RankGen}, a
+classifier-based evaluation framework that treats generator assessment as a
+set of predictive probes. The framework defines four metrics: \emph{Quality}
+(signal fidelity), \emph{Utility} (added predictive value beyond real data),
+\emph{Indistinguishability} (two-sample alignment), and \emph{Similarity}
+(local structural mixing between real and generated samples). Each metric is
+paired with a PAC-style reliability check for the corresponding empirical
+estimate. Candidate generators are then evaluated through a four-stage
+protocol: data preparation, probe training, reliability filtering, and robust
+ranking. A composite score, \emph{Exchangeability}, aggregates the accepted
+signals to summarise predictive usefulness and distributional alignment.
 
-The main contributions of this chapter are as follows. We introduce a statistically grounded evaluation framework that reformulates generative model assessment as a collection of predictive probes. We propose four complementary classifier-based metrics equipped with PAC-style guarantees that diagnose distinct failure modes of generative models. We develop a four stages evaluation protocol that combines statistical reliability checks with robust quantile-based ranking. We provide empirical studies demonstrating that RankGen exposes important pathologies, including memorisation, that conventional metrics often miss. This chapter constitutes the third methodological contribution of the thesis; while earlier chapters focused on representation learning and generative modelling for structured data, the present chapter addresses the equally important problem of evaluating generative models in a statistically principled manner.
+The contribution of the chapter is therefore not another single score, but a
+diagnostic protocol for asking which aspect of generation fails, whether the
+evidence is reliable under the chosen probes, and how surviving models should
+be ranked across repeated evaluations. The empirical sections test this
+protocol on controlled perturbations, molecular graph generators, image
+benchmarks, and open-domain text generation.
 
 \paragraph{Chapter structure.}
-The remainder of this chapter is organised as follows.
-Section~\ref{sec:rankgen:limitations} reviews the limitations of existing
-evaluation approaches and motivates the need for a statistically grounded,
-diagnostic framework.
+The remainder of this chapter is organised as follows. The preceding section
+identified limitations of existing evaluation approaches and motivated the need
+for a diagnostic framework with explicit reliability checks.
 Section~\ref{sec:rankgen:framework} reformulates generative model evaluation
 as a learning problem.
 Section~\ref{sec:method} presents the RankGen methodology, including the data
@@ -200,7 +213,7 @@ by a generative model. Given samples from these distributions, we construct
 learning problems whose solutions reveal properties of the generator.
 Different predictive tasks expose different types of failure modes.
 
-For example, if a classifier trained on generated data generalizes poorly to
+For example, if a classifier trained on generated data generalises poorly to
 real data, this suggests that the generator fails to capture task-relevant
 structure. Conversely, if a classifier can easily distinguish real from
 generated samples, this indicates a distributional mismatch between $D_r$ and
@@ -296,28 +309,28 @@ generators succeed or fail.
 %-------------------------------------------------------------------------------------------------------------
 \subsection{Data Preparation and Sampling}
 
-Consider a classification dataset \(D = \{(x_i, y_i)\}_{i=1}^N\), 
-where each feature vector \(x_i \in \mathbb{R}^d\) lies in a \(d\)-dimensional space, 
+Consider a classification dataset \(D = \{(x_i, y_i)\}_{i=1}^N\),
+where each feature vector \(x_i \in \mathbb{R}^d\) lies in a \(d\)-dimensional space,
 and each label \(y_i \in \{1,\ldots,C\}\) denotes one of \(C\) classes.
-We first partition \(D\) into a training set \(D_{\text{train}}\) and a held-out 
+We first partition \(D\) into a training set \(D_{\text{train}}\) and a held-out
 test set \(D_{\text{test}}\).
-The training set is then further divided, using stratified sampling, into two 
+The training set is then further divided, using stratified sampling, into two
 equally sized subsets, \(D_{\text{train1}}\) and \(D_{\text{train2}}\).
 
 
 \paragraph{Training the generators.}
-We adopt a class-wise strategy for generating synthetic data. 
-Unless the underlying model is inherently class-conditional, we train a separate 
-generator for each class. 
-Specifically, for every class \(c \in \{1,\ldots,C\}\), we fit a generative model \(f_c\) using only 
+We adopt a class-wise strategy for generating synthetic data.
+Unless the underlying model is inherently class-conditional, we train a separate
+generator for each class.
+Specifically, for every class \(c \in \{1,\ldots,C\}\), we fit a generative model \(f_c\) using only
 the corresponding subset \(D_{\text{train1}}^{c}\) of the training data.
-For models that are unconditional, we use the same generator architecture, 
-but train it independently on the samples of each class. 
+For models that are unconditional, we use the same generator architecture,
+but train it independently on the samples of each class.
 %Each generator is trained once per generator configuration, and is not retrained across replicates.
 
 
 \paragraph{Constructing the synthetic pool.}
-After training, we draw synthetic samples once for each class to construct a 
+After training, we draw synthetic samples once for each class to construct a
 base synthetic dataset. Let \(p_{f_c}\) denote the distribution induced by the generator \(f_c\). For each class \(c\), we sample
 $
 \{x_{c,\ell}\}_{\ell=1}^{N_c} \sim p_{f_c},
@@ -360,7 +373,7 @@ $\rho_2^{(i)} = \Phi_{\theta}(D_{\text{generated}}^{(i)})$ & Accuracy when train
 $\rho_3^{(i)} = \Phi_{\theta}(D_{\text{train1}}^{(i)} \cup D_{\text{train2}}^{(i)})$ & Accuracy with extra real data (upper bound). \\
 $\rho_4^{(i)} = \Phi_{\theta}(D_{\text{train1}}^{(i)} \cup D_{\text{generated}}^{(i)})$ & Accuracy with real+generated data (usefulness). \\
 $\rho_5^{(i)} = \Psi_{\theta}(D_{\text{train1}}^{(i)}, D_{\text{generated}}^{(i)})$ & Discriminator accuracy distinguishing real vs.\ generated. \\
-$\rho_6^{(i)} = \Gamma_{\theta}(D_{\text{train1}}^{(i)}, D_{\text{generated}}^{(i)})$ & Entropy-based similarity of local feature neighborhoods. \\
+$\rho_6^{(i)} = \Gamma_{\theta}(D_{\text{train1}}^{(i)}, D_{\text{generated}}^{(i)})$ & Entropy-based similarity of local feature neighbourhoods. \\
 \bottomrule
 \end{tabular}
 \end{small}
@@ -454,7 +467,7 @@ Appendix~\ref{app:theory-utility}.
 
 \paragraph{Interpretation and practice.}
 Utility captures whether synthetic data contributes \emph{additional} predictive
-value beyond the original real training set. When a generator merely memorizes
+value beyond the original real training set. When a generator merely memorises
 existing samples, synthetic augmentation adds little or no new information, so
 $\Delta_{\mathrm{generated}}^{(i)}$ remains small and $U^{(i)}$ collapses
 toward $0$, even if other similarity-style scores appear strong. Conversely,
@@ -729,11 +742,11 @@ Appendices~\ref{app:theory-quality}--\ref{app:theory-exchangeability}.
 \rowcolors{2}{white}{gray!5}
 \begin{tabular}{lccccc}
 \toprule
-\textbf{Generator} 
-& \textbf{Quality} 
-& \textbf{Utility} 
-& \shortstack{\textbf{Indistinguish} \\ \textbf{ability}} 
-& \textbf{Similarity} 
+\textbf{Generator}
+& \textbf{Quality}
+& \textbf{Utility}
+& \shortstack{\textbf{Indistinguish} \\ \textbf{ability}}
+& \textbf{Similarity}
 & \shortstack{\textbf{Exchange-} \\ \textbf{ability}} \\
 \midrule
 s4dd\_u\_1  & \cellcolor{passblue}\cmark & \cellcolor{passblue}\cmark & \cellcolor{passblue}\cmark & \cellcolor{passblue}\cmark & \cellcolor{passblue}\cmark \\
@@ -902,7 +915,7 @@ A desirable metric should respond consistently, indicated by a strong positive (
 \textbf{Similarity}, which detects \textit{local mismatch}, also shows high sensitivity to geometric misalignment.
 \textbf{Utility}, which measures \textit{added value}, is uniquely responsive to \textit{copy noise}, effectively identifying memorisation even when other metrics remain insensitive.
 However, it may fluctuate in challenging regimes involving small or imbalanced datasets.
-\textbf{Indistinguishability}, designed to capture \textit{real-vs-fake separability}, often fails under copy scenarios where discriminators do not generalize well.
+\textbf{Indistinguishability}, designed to capture \textit{real-vs-fake separability}, often fails under copy scenarios where discriminators do not generalise well.
 Finally, \textbf{Quality} (i.e., \textit{task fidelity}) shows reduced sensitivity under severe corruption or low-sample regimes.
 \graphicspath{{results/synthetic/}} % so you can omit the long path
 
@@ -982,16 +995,16 @@ Across all synthetic perturbation experiments, Table~\ref{tab:pac-fail-overall} 
   Each radar plot shows loadings of $\{U,Q,I,S,\mathcal E_{\min}\}$; the dashed circle marks $0$ (rings at $\pm0.5$ and $\pm1$).
   PC1 captures a global corruption factor, while PC2/PC3 reveal complementary trade-offs (e.g., $Q$ vs.\ $I/E$, or $U$ vs.\ $S$).}
 \end{figure}
-We apply PCA to standardized metric vectors $(U,Q,I,S,E)$ to study how RankGen’s axes co-vary under canonical perturbations. Standardization (zero mean, unit variance) ensures that principal components reflect \emph{shared structure} rather than differences in raw scale \citep{jolliffe2002pca,abdi2010pca}.  
+We apply PCA to standardized metric vectors $(U,Q,I,S,E)$ to study how RankGen’s axes co-vary under canonical perturbations. Standardization (zero mean, unit variance) ensures that principal components reflect \emph{shared structure} rather than differences in raw scale \citep{jolliffe2002pca,abdi2010pca}.
 
 \paragraph{Global factor vs.\ structured trade-offs.}
-Across most perturbations, \textbf{PC1} behaves as a global “level” factor: all metrics load in the same direction, capturing overall corruption severity. This pattern is clearest in the Gaussian noise and mode collapse settings, where PC1 explains nearly all variance with uniform contributions from $\{U,Q,I,S,E\}$. By contrast, perturbations involving duplication or label inversion distribute variance across multiple components. In noisy copies and inverted targets, PC1 accounts for a smaller share, leaving PC2/PC3 to isolate distinct residual signals.  
+Across most perturbations, \textbf{PC1} behaves as a global “level” factor: all metrics load in the same direction, capturing overall corruption severity. This pattern is clearest in the Gaussian noise and mode collapse settings, where PC1 explains nearly all variance with uniform contributions from $\{U,Q,I,S,E\}$. By contrast, perturbations involving duplication or label inversion distribute variance across multiple components. In noisy copies and inverted targets, PC1 accounts for a smaller share, leaving PC2/PC3 to isolate distinct residual signals.
 
 \paragraph{Scenario-specific axes.}
-The remaining components (PC2, PC3) disentangle complementary trade-offs. For Gaussian noise, PC2 contrasts \textbf{Quality} against \textbf{Indistinguishability} and \textbf{Exchangeability}, while PC3 highlights residual variance in \textbf{Utility}. For mode collapse, PC2/PC3 emphasize losses in \textbf{Similarity} and \textbf{Utility}, consistent with reduced local mixing and predictive value. For exact copies, higher-order axes distinguish between inflated \textbf{Indistinguishability} and depressed \textbf{Utility}/\textbf{Similarity}, reflecting the fact that duplicates look realistic but add little value. In noisy copies, the decomposition shows a more complex balance, with \textbf{Quality} and \textbf{Exchangeability} trading off against \textbf{Similarity}. Finally, in inverted targets, PC2 is dominated by \textbf{Indistinguishability}, while PC3 sets \textbf{Utility} against \textbf{Similarity} and \textbf{Quality}, consistent with models that flip labels being easy to tell apart yet still producing plausible-looking samples.  
+The remaining components (PC2, PC3) disentangle complementary trade-offs. For Gaussian noise, PC2 contrasts \textbf{Quality} against \textbf{Indistinguishability} and \textbf{Exchangeability}, while PC3 highlights residual variance in \textbf{Utility}. For mode collapse, PC2/PC3 emphasise losses in \textbf{Similarity} and \textbf{Utility}, consistent with reduced local mixing and predictive value. For exact copies, higher-order axes distinguish between inflated \textbf{Indistinguishability} and depressed \textbf{Utility}/\textbf{Similarity}, reflecting the fact that duplicates look realistic but add little value. In noisy copies, the decomposition shows a more complex balance, with \textbf{Quality} and \textbf{Exchangeability} trading off against \textbf{Similarity}. Finally, in inverted targets, PC2 is dominated by \textbf{Indistinguishability}, while PC3 sets \textbf{Utility} against \textbf{Similarity} and \textbf{Quality}, consistent with models that flip labels being easy to tell apart yet still producing plausible-looking samples.
 
 \paragraph{Interpretation.}
-Signs of loadings are arbitrary in PCA \citep{abdi2010pca,lever2017pca}; what matters are their relative magnitudes and oppositions. The fact that PC2/PC3 consistently recover orthogonal axes beyond the global level confirms that RankGen’s metrics are not collinear. Instead, they capture complementary error signatures: once the “common factor” is removed, residual axes reveal whether degradation arises from poor utility, collapsed similarity, or label inversion. This diagnostic separation is precisely what RankGen is designed to provide.  
+Signs of loadings are arbitrary in PCA \citep{abdi2010pca,lever2017pca}; what matters are their relative magnitudes and oppositions. The fact that PC2/PC3 consistently recover orthogonal axes beyond the global level confirms that RankGen’s metrics are not collinear. Instead, they capture complementary error signatures: once the “common factor” is removed, residual axes reveal whether degradation arises from poor utility, collapsed similarity, or label inversion. This diagnostic separation is precisely what RankGen is designed to provide.
 
 
 
@@ -1010,7 +1023,7 @@ Our datasets are sourced from the \textit{Therapeutics Data Commons}\citep{huang
 For each dataset, we perform class-conditional generation using a diverse set of molecular generative models spanning multiple paradigms. \textbf{STGG}\citep{ahn2021spanning} is an autoregressive model that constructs molecules via spanning trees; \textbf{WGAN-GP with R-GCN}\citep{keras2021wgan} applies adversarial training to graph-structured data; \textbf{JTNN}\citep{jin2018junction} and \textbf{HierVAE}\citep{c} are hierarchical variational autoencoders, the former based on junction trees and the latter on motif assembly; \textbf{MoFlow}\citep{zang2020moflow} is a normalizing flow model allowing exact likelihood estimation; \textbf{GDSS}\citep{jo2022score} is a score-based diffusion model built on stochastic differential equations; and \textbf{SWINGNN}\citep{yan2023swingnn} is a graph diffusion model enhanced with shifted window attention. We also introduce the \textbf{Neighborhood Swap Generator (NS)}, a non-parametric, training-free method that perturbs input graphs through iterative local rewiring of neighbourhood subgraphs, producing diverse synthetic variants across one to three rounds of compounding perturbations (NS-1, NS-2, NS-3). These models collectively span autoencoding, flow-based, adversarial, diffusion-based, and perturbation-based generative paradigms (see Appendix~\ref{appendix:molecular_datasets} and Appendix~\ref{appendix:hyperparameters_for_molecular} for details).
 
 \textbf{Feature Representation.}
-To enable consistent comparison, we convert molecular graphs into fixed-length vectors using three types of encoders: (1) classical fingerprints (e.g., \textbf{Morgan}, \textbf{Torsion}, \textbf{Atom Pair}, \textbf{RDKit}\citep{rdkit2011}); (2) neural graph embeddings from models such as \textbf{GIN}\citep{xu2019powerful}, \textbf{GraphCL}\citep{you2020graph}, and \textbf{InfoGraph}\citep{sun2019infograph}; and (3) discrete graph kernels, notably \textbf{NSPDK}~\citep{costa2010fast}. This diversity supports robust evaluation across both learned and handcrafted feature spaces. While overall trends are consistent, we observe that the choice of vectorizer can influence generator rankings within each PAC-valid group, highlighting the importance of feature representation in shaping performance signals. 
+To enable consistent comparison, we convert molecular graphs into fixed-length vectors using three types of encoders: (1) classical fingerprints (e.g., \textbf{Morgan}, \textbf{Torsion}, \textbf{Atom Pair}, \textbf{RDKit}\citep{rdkit2011}); (2) neural graph embeddings from models such as \textbf{GIN}\citep{xu2019powerful}, \textbf{GraphCL}\citep{you2020graph}, and \textbf{InfoGraph}\citep{sun2019infograph}; and (3) discrete graph kernels, notably \textbf{NSPDK}~\citep{costa2010fast}. This diversity supports robust evaluation across both learned and handcrafted feature spaces. While overall trends are consistent, we observe that the choice of vectorizer can influence generator rankings within each PAC-valid group, highlighting the importance of feature representation in shaping performance signals.
 \paragraph{Model Comparison Across Real Generators.}
 Figure~\ref{fig:generators-rank} displays the average quantile-based ranking of each generator, aggregated across datasets and feature encodings.\footnote{Table~\ref{tab:bounds_check} reflects a single experimental run (see Fig.\ref{fig:rank_herg_karim}), while Fig.\ref{fig:generators-rank} averages over multiple trials—accounting for observed differences.} \textbf{S4DD} variants and \textbf{STGG} consistently achieve top rankings across all metrics, indicating strong generalisation and distributional alignment. In contrast, models such as \textbf{WGAN} and \textbf{MoFlow} rank poorly—particularly in \textbf{Exchangeability}—suggesting limited task utility and diversity.
 Interestingly, the pretrained version of S4DD—trained on over a million molecules—does not yield substantial gains over its dataset-specific counterparts trained on only a few thousand examples. This suggests that broad pretraining does not necessarily translate into better generative performance under task-specific constraints.
@@ -1026,13 +1039,13 @@ These findings reinforce RankGen’s central insight: matching superficial distr
   Lower is better. StyleGAN2-lite exhibits high Quality but low Utility and Similarity, echoing our synthetic mode-collapse setting. This suggests strong precision but poor coverage—models of this type risk overfitting narrow regions of the data. VAEs remain competitive on digits.}
   \label{fig:cifar10-ranks}
 \end{figure}
-We use three canonical benchmarks: \textbf{MNIST}~\citep{lecun1998gradient}, 
-\textbf{Fashion--MNIST}~\citep{xiao2017fashion}, and \textbf{CIFAR--10}~\citep{krizhevsky2009learning}, 
-with consistent preprocessing and stratified splits (Appendix~\ref{app:image-experiments}). 
-Test images are never used for training or selection. We evaluate class-conditional generators spanning multiple paradigms.  
-\textbf{VAEs:} MLP-VAE, Conv-VAE, and ResNet-VAE~\citep{kingma2014auto,rezende2014stochastic}.  
-\textbf{GANs:} DCGAN~\citep{radford2016unsupervised}, WGAN--GP with projection discriminator~\citep{gulrajani2017improved,miyato2018cgans}, and a $32{\times}32$ \textbf{StyleGAN2-lite}~\citep{karras2020analyzing}.  
-\textbf{Diffusion:} cDDPM with UNet backbone~\citep{ho2020denoising,ronneberger2015u,ho2022classifier} and a Transformer2D backbone (DiT style)~\citep{peebles2023di}, using HuggingFace Diffusers samplers~\citep{von-platen-etal-2022-diffusers} (see architectural and training details  in Appendix~\ref{app:image-models}). 
+We use three canonical benchmarks: \textbf{MNIST}~\citep{lecun1998gradient},
+\textbf{Fashion--MNIST}~\citep{xiao2017fashion}, and \textbf{CIFAR--10}~\citep{krizhevsky2009learning},
+with consistent preprocessing and stratified splits (Appendix~\ref{app:image-experiments}).
+Test images are never used for training or selection. We evaluate class-conditional generators spanning multiple paradigms.
+\textbf{VAEs:} MLP-VAE, Conv-VAE, and ResNet-VAE~\citep{kingma2014auto,rezende2014stochastic}.
+\textbf{GANs:} DCGAN~\citep{radford2016unsupervised}, WGAN--GP with projection discriminator~\citep{gulrajani2017improved,miyato2018cgans}, and a $32{\times}32$ \textbf{StyleGAN2-lite}~\citep{karras2020analyzing}.
+\textbf{Diffusion:} cDDPM with UNet backbone~\citep{ho2020denoising,ronneberger2015u,ho2022classifier} and a Transformer2D backbone (DiT style)~\citep{peebles2023di}, using HuggingFace Diffusers samplers~\citep{von-platen-etal-2022-diffusers} (see architectural and training details  in Appendix~\ref{app:image-models}).
 \paragraph{RankGen summary and diagnostics.}
 Figure~\ref{fig:cifar10-ranks} summarizes generator \emph{ranks} under RankGen
 (Quality $Q$, Utility $U$, Indistinguishability $I$, Similarity $S$, and Exchangeability $E$)
@@ -1141,7 +1154,7 @@ behave very differently in downstream use.
 \subsection{Open-Domain Text Generation}
 \label{subsec:text}
 
-To assess whether \textsc{RankGen} generalizes beyond graph and image generators, we evaluate it on open-domain text generation using the \textsc{AG-News} corpus~\citep{zhang2015character}, which contains news headlines labelled with four topics (\emph{World}, \emph{Sports}, \emph{Business}, \emph{Sci/Tech}). We treat human-written headlines as real data and consider three GPT-2 variants~\citep{radford2019language} as conditional generators: \texttt{distilgpt2}, \texttt{gpt2}, and \texttt{gpt2-medium}. For each class, models are prompted with a topic-specific prefix and used to sample synthetic headlines.
+To assess whether \textsc{RankGen} generalises beyond graph and image generators, we evaluate it on open-domain text generation using the \textsc{AG-News} corpus~\citep{zhang2015character}, which contains news headlines labelled with four topics (\emph{World}, \emph{Sports}, \emph{Business}, \emph{Sci/Tech}). We treat human-written headlines as real data and consider three GPT-2 variants~\citep{radford2019language} as conditional generators: \texttt{distilgpt2}, \texttt{gpt2}, and \texttt{gpt2-medium}. For each class, models are prompted with a topic-specific prefix and used to sample synthetic headlines.
 
 All real and generated headlines are embedded using a frozen MiniLM sentence encoder~\citep{wang2020minilm}, and \textsc{RankGen} is applied with a logistic regression classifier as the downstream estimator, following the same protocol as in previous sections.
 
@@ -1169,7 +1182,7 @@ All real and generated headlines are embedded using a frozen MiniLM sentence enc
 
 Across metrics, larger models achieve higher Quality, Similarity, and Indistinguishability (Table~\ref{tab:text-results}), while real-versus-generated classification accuracy remains below perfect ($\approx 0.96$, $0.92$, $0.91$), ruling out trivial separability and indicating partial overlap between real and synthetic samples in representation space.
 
-These results show that \textsc{RankGen} generalizes naturally to high-dimensional text generation without any text-specific modifications to the method.
+These results show that \textsc{RankGen} generalises to high-dimensional text generation without any text-specific modifications to the method.
 \section{Conclusion}
 \label{sec:conclusion-rankgen}
 This chapter introduced \textsc{RankGen}, a statistically grounded framework for

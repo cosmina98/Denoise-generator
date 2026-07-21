@@ -91,16 +91,15 @@ Combining neighbourhood hashing, anchor-pair enumeration, and connector
 construction gives
 \[
 T_{\mathrm{total}}
-==================
-
-O!\left(
+=
+O\!\left(
 \sum_{v\in V}
-\bigl(|\mathcal{N}*R(v)|+|E_R(v)|\bigr)
+\bigl(|\mathcal{N}_R(v)|+|E_R(v)|\bigr)
 +
-\sum*{v\in V}
-\bigl(|\mathcal{N}*D(v)|+|E_D(v)|\bigr)
+\sum_{v\in V}
+\bigl(|\mathcal{N}_D(v)|+|E_D(v)|\bigr)
 +
-C*{\mathrm{conn}}
+C_{\mathrm{conn}}
 \right),
 \]
 where $C_{\mathrm{conn}}$ denotes the total cost of constructing and encoding
@@ -111,9 +110,9 @@ construction restricted to bounded local regions, the total cost is
 near-linear in $|V|$. In dense or small-diameter graphs, however, the number
 and size of the relevant anchor configurations may approach a quadratic
 regime. The worst-case cost therefore remains
-[
-O!\bigl(n(n+m)+C_{\mathrm{conn}}\bigr).
-]
+\[
+O\!\bigl(n(n+m)+C_{\mathrm{conn}}\bigr).
+\]
 
 \subsection{Attribute Integration Cost}
 
@@ -130,8 +129,7 @@ T_{\mathrm{attr}}=O(pN_{\mathrm{inc}}),
 and the overall cost is
 \[
 T_{\mathrm{total}}
-==================
-
+=
 T_{\mathrm{struct}}+O(pN_{\mathrm{inc}}).
 \]
 Thus, attribute integration scales linearly with the attribute dimension but

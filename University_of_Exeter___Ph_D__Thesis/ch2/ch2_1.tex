@@ -6,7 +6,7 @@ core contributions of this thesis: interpretable graph representations,
 diffusion-based graph generation, and statistically grounded generative model
 evaluation.
 We begin by introducing the mathematical representation of graphs enriched with structural
-and attribute information, toghether with the mathematical notation used
+and attribute information, together with the mathematical notation used
 throughout the thesis. Fundamental concepts including permutation invariance,
 matrix representations, and neighbourhood structures are presented to clarify
 the computational and symmetry properties that distinguish graphs from
@@ -29,7 +29,7 @@ subsequent chapters.
 \section{Graphs and Structured Data}
 
 
-Graphs are a fundamental data structure for modeling relationships among entities
+Graphs are a fundamental data structure for modelling relationships among entities
 and arise naturally in a wide range of application domains, including social
 networks~\citep{newman2003structure}, bioinformatics~\citep{borgwardt2005protein},
 chemoinformatics~\citep{weininger1988smiles}, recommender systems~\citep{ying2018graph},
@@ -37,22 +37,21 @@ and cybersecurity~\citep{10.1145/310889.310919}. Unlike data embedded in regular
 Euclidean domains such as images or sequences, graphs encode irregular,
 non-Euclidean structures with variable neighbourhood sizes and complex
 topologies~\citep{bronstein2017geometric}. This structural flexibility makes graphs
-a powerful modeling formalism, but also introduces significant challenges for
+a powerful modelling formalism, but also introduces significant challenges for
 representation, learning, generation, and evaluation.
 \begin{definition}[Graph]
 A (finite) graph is a tuple $G=(V,E)$, where
-$V=\{v_1,\dots,v_n\}$ is a set of vertices and
-$E \subseteq V \times V$ is a set of edges.
-If $G$ is \emph{undirected}, edges are unordered pairs $\{u,v\}$; if
-$G$ is \emph{directed}, edges are ordered pairs $(u,v)$.
+$V=\{v_1,\dots,v_n\}$ is a finite set of vertices and \(E\) is a finite
+set of edges. If $G$ is \emph{undirected}, edges are unordered pairs
+$\{u,v\}$ with \(u,v\in V\); if $G$ is \emph{directed}, edges are ordered
+pairs $(u,v)\in V\times V$.
 \end{definition}
 \begin{definition}[Graph isomorphism]
 Two graphs $G=(V,E)$ and $G'=(V',E')$ are said to be \emph{isomorphic}
 if there exists a bijection $\pi: V \to V'$ such that
-\[
-(u,v) \in E \iff (\pi(u),\pi(v)) \in E'.
-\]
-Graph isomorphism formalizes structural equivalence independently of
+\(\pi\) preserves adjacency: vertices \(u\) and \(v\) are adjacent in \(G\)
+if and only if \(\pi(u)\) and \(\pi(v)\) are adjacent in \(G'\). Graph
+isomorphism formalizes structural equivalence independently of
 vertex ordering.
 \end{definition}
 \begin{figure}[h]
@@ -141,11 +140,11 @@ A graph whose vertices are assigned discrete labels is referred to as a
 graph variants considered in this thesis, including an undirected graph, a fully
 labelled graph, and a graph with real-valued node attributes.
 
-\begin{definition}[labelled graph]
-A labelled graph is a graph $G=(V,E)$ equipped with a labeling function
-$\ell: V \to \mathcal{L}$ and, optionally, an edge labeling function
-$\ell_E: E \to \mathcal{L}_E$, where $\mathcal{L}$ and $\mathcal{L}_E$ are finite
-sets of discrete labels.
+\begin{definition}[Labelled graph]
+A labelled graph is a graph \(G=(V,E)\) equipped with a node-label function
+\(\tau_V:V\to\mathcal{T}_V\) and, optionally, an edge-label function
+\(\tau_E:E\to\mathcal{T}_E\), where \(\mathcal{T}_V\) and
+\(\mathcal{T}_E\) are finite sets of discrete labels.
 \end{definition}
 \footnote{Unless stated otherwise, all graphs considered in this thesis are simple graphs: they do not contain parallel edges or self-loops.}
 In many applications, however, vertex and edge annotations are not restricted to
@@ -160,7 +159,7 @@ the dimensions of node and edge attributes, respectively. Node attributes are
 specified by a function $x: V \to \mathbb{R}^{d_x}$, assigning a feature vector
 $x_v$ to each node $v$, and edge attributes by a function
 $e: E \to \mathbb{R}^{d_e}$, assigning a feature vector $e_{uv}$ to each edge
-$(u,v)$. Attributes may be continuous or categorical.
+\(\{u,v\}\) or \((u,v)\). Attributes may be continuous or categorical.
 \end{definition} 
 We assume a fixed ordering of the vertex set $V=\{v_1,\dots,v_n\}$.
 Under this ordering, the adjacency matrix provides a canonical matrix
@@ -168,7 +167,7 @@ representation of the graph structure and consists of $n$ rows and $n$ columns,
 that is, $A\in\mathbb{R}^{n\times n}$.
 For a vertex $v_i\in V$, its (open) neighbourhood is defined as
 \[
-N(v_i)=\{\,v_j\in V \mid (v_i,v_j)\in E\,\},
+N(v_i)=\{\,v_j\in V \mid v_i \text{ and } v_j \text{ are adjacent}\,\},
 \]
 that is, the set of vertices adjacent to $v_i$.
 The degree of $v_i$ in $G$, denoted by $\deg_G(v_i)$, is the cardinality of its
@@ -179,14 +178,14 @@ throughout this thesis.
 \begin{definition}[Adjacency matrix]
 Let $G=(V,E)$ be a graph with $|V|=n$ and a fixed vertex ordering.
 The adjacency matrix $A\in\mathbb{R}^{n\times n}$ is defined by
-$A_{ij}=1$ if $(v_i,v_j)\in E$ and $A_{ij}=0$ otherwise; for weighted graphs,
-$A_{ij}$ may store an edge weight.
+$A_{ij}=1$ if \(v_i\) and \(v_j\) are adjacent and $A_{ij}=0$ otherwise;
+for weighted graphs, $A_{ij}$ may store an edge weight.
 \end{definition}
 
-\paragraph{Neighborhood and degree.}
+\paragraph{Neighbourhood and degree.}
 For a vertex $v_i\in V$, the (open) neighbourhood is
 \[
-N(v_i)=\{\,v_j\in V \mid (v_i,v_j)\in E\,\}.
+N(v_i)=\{\,v_j\in V \mid v_i \text{ and } v_j \text{ are adjacent}\,\}.
 \]
 The degree of $v_i$ in $G$, denoted $\deg(v_i)$, is the number of adjacent
 vertices,
@@ -209,10 +208,10 @@ Given a vertex subset $S\subseteq V$, the induced subgraph $G(S)$ is defined as
 \[
 \begin{aligned}
 G(S) &= (S,E(S)), \\
-E(S) &= \{(u,v)\in E \mid u,v\in S\}.
+E(S) &= \{e\in E \mid \text{all endpoints of } e \text{ belong to } S\}.
 \end{aligned}
 \]
-\paragraph{Shortest paths and neighborhoods.}
+\paragraph{Shortest paths and neighbourhoods.}
 Let $G=(V,E)$ be a graph and let $u,v\in V$ belong to the same connected
 component. A \emph{path} between $u$ and $v$ is a sequence of adjacent vertices
 connecting them. Among all such paths, there exists at least one with minimal
@@ -235,12 +234,12 @@ N_r(v)=\{u \in V \mid d(u,v) \leq r\}.
 \]
 For unweighted graphs, this corresponds to the usual $r$-hop neighbourhood when
 $r$ is an integer.
-These neighborhoods capture increasingly large local regions of the graph and
+These neighbourhoods capture increasingly large local regions of the graph and
 play a central role in many graph representation, learning, and kernel-based
 methods.
 \paragraph{Permutation invariance and equivariance.}
 A central challenge in learning on graphs is that vertex identities are
-arbitrary: a relabeling of the vertices should not change the underlying
+arbitrary: a relabelling of the vertices should not change the underlying
 graph. Formally, let $n=|V|$ and let $\pi$ be a permutation of $\{1,\dots,n\}$.
 We represent $\pi$ by its permutation matrix $P_\pi\in\{0,1\}^{n\times n}$.
 If $A$ is the adjacency matrix under a given vertex ordering, then the same
@@ -423,7 +422,7 @@ vector in closed form.
 Such representations are defined independently of any downstream learning task
 and are entirely determined by the chosen structural decomposition or feature
 family. Their components typically correspond to well-defined substructures,
-statistics, or patterns—such as walks, paths, neighborhoods, subgraphs, or
+statistics, or patterns---such as walks, paths, neighbourhoods, subgraphs, or
 spectral quantities—capturing structural properties of the graph.
 
 \subsubsection{Topological and Spectral Descriptors}
@@ -785,7 +784,7 @@ k_{\mathrm{WL}}^{(h)}(G,G')
 \langle \phi(G), \phi(G') \rangle.
 \]
 
-The relabeling procedure requires
+The relabelling procedure requires
 $\mathcal{O}(h m)$ time for a graph with $m$ edges.
 For fixed $h$, the method therefore scales
 linearly in the size of the graph,
@@ -1022,7 +1021,7 @@ relies on implicit feature representations.
 
 The Multiscale Laplacian Graph Kernel (MLGK)
 \citep{kondor2016multiscalelaplaciangraphkernel}
-compares graphs by modeling their structure
+compares graphs by modelling their structure
 through Laplacian-based Gaussian distributions
 at multiple scales.
 
@@ -1429,7 +1428,7 @@ where $\mathrm{READOUT}$ may be global sum, mean, or max pooling, attention pool
 \paragraph{Training objectives and inductive learning.}
 GNNs can be trained under node, edge, or graph-level supervision. In node classification, a predictor $p_\theta(y_v \mid \mathbf{h}_v^{(L)})$ (e.g., softmax layer) is optimised on labelled nodes. In link prediction, a similarity function or multilayer perceptron operates on pairs $(\mathbf{h}_u^{(L)},\mathbf{h}_v^{(L)})$. In graph classification, predictions are made from $\mathbf{z}_G$.
 
-A key methodological distinction concerns \emph{transductive} versus \emph{inductive} settings. In transductive learning, all nodes are observed during training but only a subset is labelled. In inductive learning, the model must generalize to previously unseen nodes or entirely new graphs. Because GNNs learn local aggregation rules rather than node-specific parameters, many architectures naturally support inductive generalisation.
+A key methodological distinction concerns \emph{transductive} versus \emph{inductive} settings. In transductive learning, all nodes are observed during training but only a subset is labelled. In inductive learning, the model must generalise to previously unseen nodes or entirely new graphs. Because GNNs learn local aggregation rules rather than node-specific parameters, many architectures naturally support inductive generalisation.
 
 
 
@@ -1478,7 +1477,7 @@ need for carefully designed structural encodings pose scalability challenges,
 
 Graph kernels and graph embeddings reflect two complementary perspectives
 on representation learning for structured data.
-Kernels emphasize pairwise comparison by defining an explicit similarity
+Kernels emphasise pairwise comparison by defining an explicit similarity
 function $k(G_i,G_j)$, and are naturally suited to similarity assessment,
 ranking, and kernel-based classification, particularly in small-sample
 regimes. Because they rely on deterministic feature maps and convex
@@ -1488,7 +1487,7 @@ end-to-end models.
 Embedding-based methods, in contrast, produce vector representations of
 individual graphs or nodes through parameterised models trained on
 task-specific objectives. These approaches are well suited for large-scale
-prediction, representation transfer, and generative modeling pipelines,
+prediction, representation transfer, and generative modelling pipelines,
 where joint optimisation and inductive generalisation are desirable.Importantly, the choice between kernels and learned embeddings is not
 merely architectural but methodological. Kernels offer explicit control
 over structural inductive bias and feature construction, whereas neural
@@ -1506,7 +1505,7 @@ issues that are central to the contributions developed in this thesis.
     \hspace*{-1.4cm}
     \includegraphics[width=1.5\textwidth]{images/graph_models.pdf}
     \caption{
-    Overview of major deep generative modeling paradigms for graphs.
+    Overview of major deep generative modelling paradigms for graphs.
     \textbf{Variational Autoencoders (VAEs)} learn a probabilistic encoder 
     $q_{\phi}(z \mid G)$ and decoder $p_{\theta}(G \mid z)$ to model graph distributions 
     via latent variable inference.
@@ -1525,7 +1524,7 @@ issues that are central to the contributions developed in this thesis.
 While the preceding discussion focused on how graphs are represented for
 downstream predictive tasks, an equally important question concerns how
 graphs themselves can be generated. In contrast to representation learning,
-graph generation requires modeling the full joint distribution over
+graph generation requires modelling the full joint distribution over
 combinatorial structures and attributes, posing additional challenges
 related to permutation invariance, validity constraints, and scalability.
 We therefore now turn to deep generative models for graphs.
@@ -1556,7 +1555,7 @@ naturally handle variable-sized graphs, they often suffer from sequential
 sampling inefficiency and sensitivity to the chosen graph ordering.
 \paragraph{Variational Autoencoders (VAEs).}
 Variational Autoencoders (VAEs) constitute one of the earliest
-likelihood-based deep generative modeling paradigms.
+likelihood-based deep generative modelling paradigms.
 They introduce a latent variable model in which observed data
 $G$ is generated from a continuous latent representation
 $z \sim p(z)$ through a decoder $p_\theta(G \mid z)$.
@@ -1647,7 +1646,7 @@ relaxations and achieving exact invertibility over discrete
 graph variables. GGFlow \citep{hou2024improving} combines
 discrete flow matching with optimal transport and an
 edge-augmented graph transformer to better model complex
-bond interactions in molecular graphs. While normalizing flows provide principled density modeling
+bond interactions in molecular graphs. While normalising flows provide principled density modelling
 with exact likelihood evaluation, the requirement of strict
 invertibility constrains architectural flexibility and may limit
 their ability to capture large-scale, global node–edge
@@ -1704,8 +1703,8 @@ updates. \textbf{Denoising Diffusion Probabilistic Models} (DDPM)
 Markov chain inspired by nonequilibrium thermodynamics,
 learning a parameterised reverse process that inverts a fixed
 Gaussian noising schedule. \textbf{Stochastic Differential Equations } (Score SDEs)
-\citep{song2020score} generalize discrete diffusion processes
-to stochastic differential equations (SDEs), modeling the forward
+\citep{song2020score} generalise discrete diffusion processes
+to stochastic differential equations (SDEs), modelling the forward
 and reverse dynamics in continuous time.
 In this formulation, generation corresponds to solving a reverse-time
 SDE whose drift term depends on the learned score function.While these paradigms are mathematically connected through score
@@ -1817,7 +1816,7 @@ sampling can be incorporated to bias generation toward desired
 graph-level characteristics \citep{ho2022classifier}.
 
 \textbf{Continuous diffusion over relaxed graph representations.}
-An alternative line of work adopts score-based generative modeling
+An alternative line of work adopts score-based generative modelling
 \citep{song2019generative,song2020score} and defines diffusion in a
 continuous space, such as relaxed adjacency matrices, node embeddings,
 or geometric coordinates.
@@ -1827,11 +1826,11 @@ Langevin dynamics or related reverse-time procedures.
 Early examples include EDP-GNN \citep{niu2020permutation}, which
 diffuses relaxed adjacency structure using a permutation-equivariant
 GNN, and ConfGF \citep{shi2021learning}, which applies score-based
-modeling directly to molecular conformations in continuous coordinate
+modelling directly to molecular conformations in continuous coordinate
 space.
 
 \textbf{Continuous-time SDE formulations.}
-Score-based diffusion can further be generalized to continuous time
+Score-based diffusion can further be generalised to continuous time
 using stochastic differential equations (Score SDEs)
 \citep{song2020score}. In this framework, graph features evolve
 according to coupled stochastic dynamics, and generation corresponds
@@ -1854,7 +1853,7 @@ of interdependent design choices:
 features, latent embeddings, or spectra);
 (ii) the enforcement of permutation symmetry (and, in geometric
 settings, E(3)-equivariance);
-(iii) the modeling of variable graph size; and
+(iii) the modelling of variable graph size; and
 (iv) the incorporation of validity constraints.
 
 These choices expose characteristic failure modes.
@@ -1944,7 +1943,7 @@ A complementary perspective evaluates generative models through supervised learn
 performance. Classifier-based protocols such as GAN-train/test~\citep{shmelkov2018good}
 and train-on-synthetic, test-on-real (TSTR)
 ~\citep{hyland2017real,esteban2017real,yoon2019timegan} assess whether models trained on
-generated data generalize to real test sets. This framing directly links evaluation to
+generated data generalise to real test sets. This framing directly links evaluation to
 practical utility, treating synthetic data as a substitute or augmentation for real data.
 In practice, however, such methods are typically reported as point estimates without
 uncertainty quantification and tend to conflate distinct sources of failure—such as
@@ -1958,15 +1957,15 @@ In molecular and graph generation, for instance, frameworks such as \textsc{Guac
 novelty, and agreement with basic property distributions.
 These criteria are useful as sanity checks, but remain narrow: a model can satisfy them by
 producing near-duplicate samples, and they often fail to assess whether generated data
-supports downstream predictive modeling tasks.Motivated by these limitations, recent work has increasingly shifted attention from
+supports downstream predictive modelling tasks. Motivated by these limitations, recent work has increasingly shifted attention from
 \emph{individual metrics} to \emph{evaluation frameworks} that study how conclusions vary
 across metrics, datasets, and experimental choices.
-Rather than collapsing performance to a single scalar score, these approaches emphasize
+Rather than collapsing performance to a single scalar score, these approaches emphasise
 multi-objective trade-offs, sensitivity analysis, and the stability of conclusions under
 perturbations of the evaluation protocol.
 For example, \citet{hall2024evalgim} introduce EvalGIM, a unified benchmarking library for
 text-to-image generative models that consolidates metrics of quality, diversity, and
-consistency and organizes them into structured ``evaluation exercises.''
+consistency and organises them into structured ``evaluation exercises.''
 EvalGIM highlights trade-offs via Pareto-front analyses and explicitly examines the
 \emph{robustness of model rankings} across metrics and datasets, showing that apparent
 model superiority can depend strongly on the evaluation choices.
@@ -1981,26 +1980,17 @@ to downstream utility but often lack uncertainty quantification and diagnostic s
 No single metric is sufficient in isolation, and conclusions drawn from individual scores
 can be unstable under changes in datasets, metrics, or feature extractors.
 
-These limitations motivate a shift in perspective: rather than treating
-evaluation as the optimisation of a single numerical score or relying on
-representation-dependent heuristics, generative model assessment should be
-formulated as a statistically grounded learning problem. In this thesis,
-we adopt a classifier-based perspective in which evaluation metrics are
-derived from predictive tasks defined on real and generated data.
-By interpreting these metrics as empirical risk estimators within the
-PAC (Probably Approximately Correct) framework, we obtain explicit uncertainty control and finite-sample
-generalisation guarantees.
-Within this formulation, the central object of interest is not an absolute
-score, but the reliability and stability of relative comparisons between
-models across datasets and evaluation criteria. Model assessment therefore
-naturally reduces to a ranking problem, where conclusions are supported by
-statistical guarantees and robustness analyses rather than isolated scalar
-values. This learning-theoretic perspective enables evaluation procedures
-that are interpretable, resistant to memorisation artifacts, and applicable
-across data modalities, while explicitly separating distinct failure modes
-such as distributional shift, loss of diversity, and predictive inadequacy. These limitations motivate the statistically grounded evaluation framework
-developed in Chapter~5, which formulates generative model assessment as a
-learning problem with uncertainty-controlled model ranking.
+These limitations motivate a shift in perspective. Instead of treating
+evaluation as the optimisation of a single score, the thesis asks whether model
+rankings remain stable across datasets, probes, and evaluation criteria. In
+Chapter~\ref{ch:rankgen}, this is done by defining predictive tasks on real and
+generated data, interpreting their empirical errors through PAC-style
+reliability bounds, and ranking only the comparisons that pass those checks.
+This formulation does not guarantee that one generator is universally best; it
+specifies when the reported evidence is reliable under the chosen probes. It
+also separates failure modes such as distributional shift, loss of diversity,
+memorisation, and poor predictive utility, rather than collapsing them into one
+scalar value.
 
 \subsection{Learning-Theoretic Preliminaries for Generative Evaluation}
 \label{sec:theory:eval_preliminaries}
