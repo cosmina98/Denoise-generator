@@ -277,11 +277,11 @@ Variable & Baseline value & Ablated value or interpretation \\
 
 Degree-histogram control & Enabled & Disabled to test whether the final predicted degree-composition projection is needed. \\
 Node-count control & Enabled & Disabled to test whether the generator can recover graph size without an explicit condition-to-count model. \\
-Node-label histogram control & Enabled & Disabled to test whether node-label composition projection is needed. In the recorded notebook this was disabled together with node-count control, so it should be interpreted as a combined ablation. \\
+Node-label histogram control & Enabled & Disabled to test whether node-label composition projection is needed. \\
 Matched-row loss & Disabled & Enabled to test whether Hungarian row alignment improves clean-\(X_0\) reconstruction. \\
 Joint edge-state variant & Disabled & Enabled to test whether a provisional adjacency state during denoising improves generation. \\
 Random row permutation & Disabled & Enabled as training-time row-order augmentation. \\
-Distance supervision & Enabled & Disabled to test the contribution of binned pairwise-distance prediction. In the recorded notebook this was combined with enabling balanced degree loss. \\
+Distance supervision & Enabled & Disabled to test the contribution of binned pairwise-distance prediction. \\
 Balanced degree loss & Disabled & Enabled to test class reweighting for degree prediction. \\
 Balanced edge loss & Enabled & Disabled to test the effect of edge/non-edge class reweighting. \\
 Node-feature dimensionality reduction & Enabled & Disabled to test whether the \gls{svd} tail reduction stabilises the node representation. \\
@@ -311,11 +311,11 @@ Configuration & Exact count & Exact rate & Strict count & Strict rate \\
 Baseline GCDG & 169 & 0.282 & 131 & 0.218 \\
 No degree-histogram control & 35 & 0.058 & 23 & 0.038 \\
 No node-count control & 102 & 0.170 & 17 & 0.028 \\
-No node-count and node-label histogram controls & 99 & 0.165 & 6 & 0.010 \\
+No node-label histogram control & 145 & 0.242 & 66 & 0.110 \\
 Matched-row loss enabled & 135 & 0.225 & 72 & 0.120 \\
 Joint edge-state variant enabled & 93 & 0.155 & 10 & 0.017 \\
 Random row permutation enabled & 149 & 0.248 & 101 & 0.168 \\
-No distance supervision, with balanced degree loss & 154 & 0.257 & 96 & 0.160 \\
+No distance supervision & 140 & 0.233 & 77 & 0.128 \\
 Balanced degree loss enabled & 165 & 0.275 & 130 & 0.217 \\
 No balanced edge loss & 168 & 0.280 & 118 & 0.197 \\
 No node-feature dimensionality reduction & 105 & 0.175 & 3 & 0.005 \\
@@ -340,9 +340,8 @@ Synthetic cycle--leg ablation results. Counts are successes out of \(600\)
 decoded graphs, corresponding to \(100\) samples for each of the six requested
 cycle sizes. Exact count/rate measure recovery of the requested cycle size.
 Strict count/rate additionally require the decoded labels to match the cycle
-and leg roles. Two rows change coupled settings: the node-count and node-label
-histogram controls are disabled together, and the distance-supervision ablation
-also enables balanced degree loss.
+and leg roles. Each non-baseline row changes the named component relative to the
+Baseline GCDG configuration.
 }
 \label{tab:synthetic-cycle-leg-ablation-results}
 \end{table}

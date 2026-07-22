@@ -1318,11 +1318,12 @@ The synthetic cycle--leg task also provides a controlled setting for testing
 which parts of the generator are needed for conditional graph construction. The
 baseline setting is the Baseline GCDG configuration shown in the left column of
 Figure~\ref{fig:generator:req-vs-cycle-combined} and specified in
-Appendix Table~\ref{tab:synthetic-cycle-leg-proposed-hyperparameters}. Each ablation changes one
-component where possible and is evaluated using the same \(100\) decoded graphs
-per requested cycle size. The exact cycle rate counts graphs with the requested
-cycle size, while the stricter metric additionally requires the node labels to
-match the required structural roles. The Baseline GCDG row therefore corresponds to
+Appendix Table~\ref{tab:synthetic-cycle-leg-proposed-hyperparameters}. Each
+non-baseline ablation changes the named component and is evaluated using the
+same \(100\) decoded graphs per requested cycle size. The exact cycle rate
+counts graphs with the requested cycle size, while the stricter metric
+additionally requires the node labels to match the required structural roles.
+The Baseline GCDG row therefore corresponds to
 the diagonal counts in the GCDG panels of
 Figure~\ref{fig:generator:req-vs-cycle-combined}: \(169\) exact structural
 matches and \(131\) strict structure-and-label matches out of \(600\) decoded
@@ -1338,11 +1339,11 @@ Configuration & Exact cycle rate & Strict rate \\
 Baseline GCDG & 0.282 & 0.218 \\
 No degree-histogram control & 0.058 & 0.038 \\
 No node-count control & 0.170 & 0.028 \\
-No node-count and node-label histogram controls & 0.165 & 0.010 \\
+No node-label histogram control & 0.242 & 0.110 \\
 Matched-row loss enabled & 0.225 & 0.120 \\
 Joint edge-state variant enabled & 0.155 & 0.017 \\
 Random row permutation enabled & 0.248 & 0.168 \\
-No distance supervision, with balanced degree loss & 0.257 & 0.160 \\
+No distance supervision & 0.233 & 0.128 \\
 Balanced degree loss enabled & 0.275 & 0.217 \\
 No balanced edge loss & 0.280 & 0.197 \\
 No node-feature dimensionality reduction & 0.175 & 0.005 \\
@@ -1370,10 +1371,8 @@ rate is computed over \(600\) decoded graphs:
 \(100\) samples for each of the six requested cycle sizes. Exact cycle rate is
 the fraction of decoded graphs that recover the requested cycle size, while
 strict rate is the fraction that also recover the correct cycle and leg role
-labels. Two rows change coupled settings: the node-count and node-label
-histogram controls are disabled together, and the distance-supervision
-ablation also enables balanced degree loss. These rows should therefore be
-interpreted as combined sensitivity checks.
+labels. Each non-baseline row changes the named component relative to the
+Baseline GCDG configuration.
 }
 \label{tab:generator:synthetic-ablation-results}
 \end{table}
@@ -1383,10 +1382,13 @@ controls and supervised structural heads have different effects. Removing the
 degree-histogram control causes the largest drop in exact cycle recovery,
 showing that the graph-level condition alone is not sufficient unless the
 decoder is also supplied with a stable degree-composition target. Removing
-node-count control, node-label supervision, degree supervision, or the
-clean-\(X_0\) reconstruction loss mainly damages the strict score, which means
-that the generator can still produce cycle-like graphs but loses the alignment
-between structure and labels.
+node-count control, node-label histogram control, node-label supervision,
+degree supervision, or the clean-\(X_0\) reconstruction loss mainly damages the
+strict score, which means that the generator can still produce cycle-like
+graphs but loses the alignment between structure and labels.
+Removing distance supervision gives a smaller but still visible drop in both
+rates, indicating that binned pairwise-distance targets help the model place
+the requested cycle but are not the only structural signal used by the decoder.
 
 The edge-supervision ablation is particularly informative. When edge
 supervision is disabled, the learned pairwise edge-probability head is no
