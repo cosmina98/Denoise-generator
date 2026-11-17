@@ -1,0 +1,11 @@
+{
+  "component_original_sha256": "a27957c745601dd95af5a1af8d914b9e9da659b5b8232994a91f0ceb55714c35",
+  "restored_sparse_fix": true,
+  "files": [
+    "GCDG_From_Scratch_Component_Audit.ipynb",
+    "GCDG_DiGress_Molecular_Comparison.ipynb"
+  ],
+  "molecular_parallel": true,
+  "component_nsppk_parallel": true,
+  "component_quotient_n_jobs": -1
+}
